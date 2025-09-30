@@ -1,6 +1,8 @@
 package thelaboflieven.info.build;
 
 
+import thelaboflieven.info.inifile.IniFileReader;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,34 +11,10 @@ import java.util.stream.Collectors;
 
 public class JavacCommandBuilder {
 
-    private final Map<String, Map<String, String>> iniData = new HashMap<>();
+    private final Map<String, Map<String, String>> iniData;
 
     public JavacCommandBuilder(String iniFilePath) throws IOException {
-        parseIniFile(iniFilePath);
-    }
-
-    private void parseIniFile(String filePath) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            String currentSection = null;
-
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith(";") || line.startsWith("#")) {
-                    continue; // skip comments/empty lines
-                }
-
-                if (line.startsWith("[") && line.endsWith("]")) {
-                    currentSection = line.substring(1, line.length() - 1).trim();
-                    iniData.putIfAbsent(currentSection, new LinkedHashMap<>());
-                } else if (currentSection != null && line.contains("=")) {
-                    String[] parts = line.split("=", 2);
-                    String key = parts[0].trim();
-                    String value = parts.length > 1 ? parts[1].trim() : "";
-                    iniData.get(currentSection).put(key, value);
-                }
-            }
-        }
+        iniData = new IniFileReader().parseIniFile(iniFilePath);
     }
 
     public String buildCommand() throws IOException {
@@ -72,7 +50,6 @@ public class JavacCommandBuilder {
                 command.add(javaFile.toAbsolutePath().toString());
             }
         }
-        //command.add( "--source-path " + sources);
 
         return String.join(" ", command);
     }
