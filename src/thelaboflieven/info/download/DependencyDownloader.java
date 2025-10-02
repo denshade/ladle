@@ -21,7 +21,7 @@ public class DependencyDownloader {
             var implParts = impl.split("/");
             var lastPart = implParts[implParts.length - 1];
             StringBuilder s = new StringBuilder();
-            commands.add(s.append("wget ").append(impl).append("  -OutFile ").append(lastPart).toString());
+            commands.add(s.append("powershell.exe wget ").append(impl).append("  -OutFile ").append(lastPart).toString());
         }
         return commands;
     }

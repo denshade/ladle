@@ -5,9 +5,10 @@ import thelaboflieven.info.download.DependencyDownloader;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class Ladle {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         System.out.println("thelaboflieven.info.Ladle version 0.1");
         if (args.length == 0){
             System.out.println("Welcome to thelaboflieven.info.Ladle 0.1");
@@ -19,39 +20,28 @@ public class Ladle {
             System.exit(1);
         }
         if (args.length == 2 && args[0].equals("build")) {
-            var buildIni = new File(args[1]);
-            if(!buildIni.canRead()) {
-                System.err.println("Cannot read " + args[1]);
-                System.exit(2);
-            }
+            var buildIni = readFileOrQuit(args);
             var builder = new JavacCommandBuilder(buildIni.getAbsolutePath());
             var runner = builder.buildCommand();
-            System.out.println(runner);
+            var commandRunner = new CommandsRunner(buildIni.getParentFile());
+            commandRunner.run(List.of(runner));
         }
         if (args.length == 2 && args[0].equals("dependency")) {
-            var buildIni = new File(args[1]);
-            if(!buildIni.canRead()) {
-                System.err.println("Cannot read " + args[1]);
-                System.exit(2);
-            }
+            var buildIni = readFileOrQuit(args);
             var builder = new DependencyDownloader(buildIni.getAbsolutePath());
-            var downloader = builder.download();
-            System.out.println(downloader);
+            var downloaders = builder.download();
+            var commandRunner = new CommandsRunner(buildIni.getParentFile());
+            commandRunner.run(downloaders);
         }
-        //compile.ini
-        /*
-        [javac]
-        javac path
-        [source]
-        path=directory 1,directory 2
+    }
 
-        parameters to javac.
-         */
-        //Support for compile
-        //Support for download
-        //Support for jar
-        //Support for test
-        //Load data from build.gradle.kts
+    private static File readFileOrQuit(String[] args) {
+        var buildIni = new File(args[1]);
+        if(!buildIni.canRead()) {
+            System.err.println("Cannot read " + args[1]);
+            System.exit(2);
+        }
+        return buildIni;
     }
 
 }
