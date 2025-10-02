@@ -1,6 +1,7 @@
 package thelaboflieven.info;
 
 import thelaboflieven.info.build.JavacCommandBuilder;
+import thelaboflieven.info.download.DependencyDownloader;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +27,16 @@ public class Ladle {
             var builder = new JavacCommandBuilder(buildIni.getAbsolutePath());
             var runner = builder.buildCommand();
             System.out.println(runner);
+        }
+        if (args.length == 2 && args[0].equals("dependency")) {
+            var buildIni = new File(args[1]);
+            if(!buildIni.canRead()) {
+                System.err.println("Cannot read " + args[1]);
+                System.exit(2);
+            }
+            var builder = new DependencyDownloader(buildIni.getAbsolutePath());
+            var downloader = builder.download();
+            System.out.println(downloader);
         }
         //compile.ini
         /*
