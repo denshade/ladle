@@ -18,4 +18,104 @@ thelaboflieven.info.Ladle supports:
 4. Running unit tests
 
 thelaboflieven.info.Ladle will optimize for transparency and speed.
-It will document clearly each and every used parameter. 
+It will document clearly each and every used parameter.
+
+## Quick start
+
+Run Ladle with a path to your build INI file:
+
+```
+java thelaboflieven.info.Ladle build build.ini
+java thelaboflieven.info.Ladle dependency build.ini
+```
+
+Commands run with the INI file's directory as the working directory, so use paths relative to that file unless you specify absolute paths.
+
+## Configuration file
+
+Ladle reads a plain INI file. Sections use `[name]` headers. Each line inside a section is `key = value`. Lines starting with `#` or `;`, and blank lines, are ignored.
+
+### Build (`build` command)
+
+The `build` command compiles Java sources with `javac`. It requires `[javac]` and `[sources]` sections.
+
+#### `[javac]`
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `path` | no | `javac` | Root directory of the JDK installation. Ladle runs `{path}\bin\javac.exe` (Windows). The path must not contain spaces (see note below). |
+| `parameters` | no | *(empty)* | Extra arguments passed to `javac`, separated by spaces (for example `-encoding UTF-8 -d build`). |
+
+#### `[sources]`
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
+
+Example `build.ini`:
+
+```ini
+[javac]
+path = C:\Java\jdk-21
+parameters = -encoding UTF-8 -d build
+
+[sources]
+paths = src,test
+```
+
+This runs (conceptually):
+
+```
+C:\Java\jdk-21\bin\javac.exe -encoding UTF-8 -d build <every .java file under src/ and test/>
+```
+
+**Path limitation:** Ladle splits the final command on spaces before execution. Values in `path`, `parameters`, and comma-separated entries in `paths` must not contain spaces. Use a JDK install path without spaces, or a directory junction/symlink to one.
+
+### Dependencies (`dependency` command)
+
+The `dependency` command downloads files listed in the INI. It requires a `[dependencies]` section.
+
+#### `[dependencies]`
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `implementation` | yes | — | Comma-separated list of URLs. Each URL is downloaded with PowerShell `wget`; the local filename is the last segment of the URL path. |
+
+Example:
+
+```ini
+[dependencies]
+implementation = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar,https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
+```
+
+Downloads `junit-4.13.2.jar` and `hamcrest-core-1.3.jar` into the INI file's directory.
+
+### Full example
+
+```ini
+[javac]
+path = C:\Java\jdk-21
+parameters = -encoding UTF-8 -d build -cp junit-4.13.2.jar
+
+[sources]
+paths = src
+
+[dependencies]
+implementation = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+```
+
+Workflow:
+
+1. `java thelaboflieven.info.Ladle dependency build.ini` — fetch JARs.
+2. `java thelaboflieven.info.Ladle build build.ini` — compile sources.
+
+## Command reference
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| *(none)* | — | Print welcome message. |
+| `--help` | — | Print brief usage (exits with status 1). |
+| `build` | `<ini-file>` | Compile Java sources described in the INI file. |
+| `dependency` | `<ini-file>` | Download dependencies described in the INI file. |
+
+If the INI path is missing or not readable, Ladle prints an error and exits with status 2.
