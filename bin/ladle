@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ -n "${LADLE_HOME:-}" ]; then
+  APP_HOME="$LADLE_HOME"
+else
+  APP_HOME="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+fi
+
+JAR="$APP_HOME/lib/ladle.jar"
+if [ ! -f "$JAR" ]; then
+  echo "Cannot find ladle.jar at $JAR" >&2
+  echo "Set LADLE_HOME or run install.sh to install Ladle." >&2
+  exit 1
+fi
+
+if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  JAVA="$JAVA_HOME/bin/java"
+else
+  JAVA="java"
+fi
+
+exec "$JAVA" -jar "$JAR" "$@"

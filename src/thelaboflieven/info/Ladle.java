@@ -12,7 +12,7 @@ public class Ladle {
         System.out.println("thelaboflieven.info.Ladle version 0.1");
         if (args.length == 0){
             System.out.println("Welcome to thelaboflieven.info.Ladle 0.1");
-            System.out.println("To see a list of command-line options, run ladlew --help\n");
+            System.out.println("To see a list of command-line options, run ladle --help\n");
         }
 
         if (args.length == 1 && args[0].equals("--help")) {

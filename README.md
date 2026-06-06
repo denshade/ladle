@@ -20,13 +20,88 @@ thelaboflieven.info.Ladle supports:
 thelaboflieven.info.Ladle will optimize for transparency and speed.
 It will document clearly each and every used parameter.
 
+## Installation
+
+Install Ladle once, then run `ladle` from any directory (similar to a global Gradle install).
+
+### Build from source
+
+```powershell
+.\build.ps1
+```
+
+```sh
+./build.sh
+```
+
+This creates `lib/ladle.jar`.
+
+### Install
+
+**Windows** (installs to `%LOCALAPPDATA%\Programs\ladle` and adds it to your user PATH):
+
+```powershell
+.\install.ps1
+```
+
+**Linux / macOS** (installs to `~/.local/ladle` and updates your shell profile):
+
+```sh
+./install.sh
+```
+
+System-wide install on Unix:
+
+```sh
+./install.sh --system
+```
+
+Custom location:
+
+```sh
+./install.sh --prefix /opt
+```
+
+After installation, open a new terminal. The launcher reads `LADLE_HOME` if set; otherwise it resolves `lib/ladle.jar` relative to the install layout:
+
+```
+ladle/
+  bin/ladle          # Unix launcher
+  bin/ladle.cmd      # Windows launcher
+  lib/ladle.jar
+```
+
+### Usage
+
+```sh
+ladle build build.ini
+ladle dependency build.ini
+ladle --help
+```
+
+You can also run from a checkout without installing:
+
+```powershell
+.\bin\ladle.ps1 build build.ini
+```
+
+```sh
+./bin/ladle build build.ini
+```
+
 ## Quick start
 
 Run Ladle with a path to your build INI file:
 
+```sh
+ladle build build.ini
+ladle dependency build.ini
 ```
-java thelaboflieven.info.Ladle build build.ini
-java thelaboflieven.info.Ladle dependency build.ini
+
+Or without installing:
+
+```sh
+java -jar lib/ladle.jar build build.ini
 ```
 
 Commands run with the INI file's directory as the working directory, so use paths relative to that file unless you specify absolute paths.
@@ -106,8 +181,8 @@ implementation = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.
 
 Workflow:
 
-1. `java thelaboflieven.info.Ladle dependency build.ini` — fetch JARs.
-2. `java thelaboflieven.info.Ladle build build.ini` — compile sources.
+1. `ladle dependency build.ini` — fetch JARs.
+2. `ladle build build.ini` — compile sources.
 
 ## Command reference
 
