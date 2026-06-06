@@ -10,15 +10,21 @@ public class CommandsRunner {
         this.currentWorkingDir = currentWorkingDir;
     }
 
-    void run(List<String> commands) throws IOException, InterruptedException {
+    int run(List<String> commands) throws IOException, InterruptedException {
         for (String command : commands) {
             var process = new ProcessBuilder().command(command.split(" ")).directory(currentWorkingDir).start();
             StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream());
             StreamGobbler outputGobbler = new StreamGobbler(process.getInputStream());
             errorGobbler.start();
             outputGobbler.start();
-            process.waitFor();
+            int exitCode = process.waitFor();
+            errorGobbler.join();
+            outputGobbler.join();
+            if (exitCode != 0) {
+                return exitCode;
+            }
         }
+        return 0;
     }
 
     class StreamGobbler extends Thread {

@@ -17,7 +17,7 @@ public class JavacCommandBuilder {
         iniData = new IniFileReader().parseIniFile(iniFilePath);
     }
 
-    public String buildCommand() throws IOException {
+    public BuildPlan buildPlan() throws IOException {
         Map<String, String> javacSection = iniData.get("javac");
         Map<String, String> sourcesSection = iniData.get("sources");
 
@@ -28,30 +28,36 @@ public class JavacCommandBuilder {
         String javacPath = javacSection.getOrDefault("path", "javac");
         String parameters = javacSection.getOrDefault("parameters", "");
         String sources = sourcesSection.getOrDefault("paths", "");
+        if (sources.isBlank()) {
+            throw new IllegalStateException("Missing paths in [sources] section of INI file.");
+        }
 
-        // Build command
         List<String> command = new ArrayList<>();
         var javacPathFull = javacPath + File.separator + "bin" + File.separator + "javac.exe";
         if (!new File(javacPathFull).canRead()) {
-            System.err.println("Cannot read " + javacPathFull);
-            System.exit(2); //TODO; throw exception, not stop execution
+            throw new IllegalStateException("Cannot read " + javacPathFull);
         }
         command.add(javacPathFull);
 
         if (!parameters.isBlank()) {
             command.add(parameters);
         }
+        var sourceFileCount = 0;
         for (String source: sources.split(",")) {
-            List<Path> javaFiles = Files.walk(new File(source).toPath())
+            List<Path> javaFiles = Files.walk(new File(source.trim()).toPath())
                     .filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith(".java"))
                     .collect(Collectors.toList());
             for (var javaFile : javaFiles) {
                 command.add(javaFile.toAbsolutePath().toString());
+                sourceFileCount++;
             }
         }
+        if (sourceFileCount == 0) {
+            throw new IllegalStateException("No .java files found in [sources].paths.");
+        }
 
-        return String.join(" ", command);
+        return new BuildPlan(String.join(" ", command), sourceFileCount, javacPathFull, parameters);
     }
 
 }
