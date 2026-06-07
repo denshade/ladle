@@ -2,3 +2,5 @@
 /lib/ladle.jar
 .jdk/
 /dependencies/
+examples/**/build/
+examples/**/dependencies/

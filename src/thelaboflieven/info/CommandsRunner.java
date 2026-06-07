@@ -10,7 +10,7 @@ public class CommandsRunner {
         this.currentWorkingDir = currentWorkingDir;
     }
 
-    int run(List<String> commands) throws IOException, InterruptedException {
+    public int run(List<String> commands) throws IOException, InterruptedException {
         for (String command : commands) {
             var process = new ProcessBuilder().command(command.split(" ")).directory(currentWorkingDir).start();
             StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream());

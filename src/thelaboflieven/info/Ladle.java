@@ -1,8 +1,8 @@
 package thelaboflieven.info;
 
+import thelaboflieven.info.build.BuildFailedException;
+import thelaboflieven.info.build.BuildOrchestrator;
 import thelaboflieven.info.build.BuildCleaner;
-import thelaboflieven.info.build.BuildPlan;
-import thelaboflieven.info.build.JavacCommandBuilder;
 import thelaboflieven.info.download.DependencyDownloader;
 import thelaboflieven.info.test.TestCommandBuilder;
 import thelaboflieven.info.test.TestPlan;
@@ -42,30 +42,14 @@ public class Ladle {
     private static void runBuild(String[] args) throws IOException, InterruptedException {
         var buildIni = resolveIniFile("build", args);
         try {
-            var builder = new JavacCommandBuilder(buildIni.getAbsolutePath());
-            var plan = builder.buildPlan();
-            printBuildPlan(buildIni, plan);
-            var commandRunner = new CommandsRunner(buildIni.getParentFile());
-            var exitCode = commandRunner.run(List.of(plan.command()));
-            if (exitCode != 0) {
-                System.err.println("Build failed with exit code " + exitCode + ".");
-                System.exit(exitCode);
-            }
-            System.out.println("Build successful.");
+            new BuildOrchestrator().build(buildIni);
+        } catch (BuildFailedException e) {
+            System.err.println(e.getMessage() + ".");
+            System.exit(e.exitCode());
         } catch (IllegalStateException e) {
             System.err.println(e.getMessage());
             System.exit(2);
         }
-    }
-
-    private static void printBuildPlan(File buildIni, BuildPlan plan) {
-        System.out.println("Building from " + buildIni.getName());
-        System.out.println("Compiling " + plan.sourceFileCount() + " Java source file(s)");
-        System.out.println("  javac: " + plan.javacPath());
-        if (!plan.parameters().isBlank()) {
-            System.out.println("  parameters: " + plan.parameters());
-        }
-        System.out.println("Running javac...");
     }
 
     private static void runDependency(String[] args) throws IOException, InterruptedException {

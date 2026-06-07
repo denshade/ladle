@@ -1,5 +1,6 @@
 package thelaboflieven.info.test;
 
+import thelaboflieven.info.build.BuildConfig;
 import thelaboflieven.info.inifile.IniFileReader;
 import thelaboflieven.info.download.TestDependencies;
 
@@ -16,9 +17,12 @@ public class TestCommandBuilder {
     private static final String DEFAULT_RUNNER = "org.junit.platform.console.ConsoleLauncher";
     private static final String DEFAULT_OUTPUT = "build/test-classes";
 
+    private final File projectDir;
     private final Map<String, Map<String, String>> iniData;
 
     public TestCommandBuilder(String iniFilePath) throws IOException {
+        var iniFile = new File(iniFilePath);
+        projectDir = iniFile.getParentFile();
         iniData = new IniFileReader().parseIniFile(iniFilePath);
     }
 
@@ -28,7 +32,6 @@ public class TestCommandBuilder {
             throw new IllegalStateException("Missing [test] section in INI file.");
         }
 
-        String jdkPath = resolveJdkPath(testSection);
         String sources = testSection.getOrDefault("sources", "");
         String classpath = testSection.getOrDefault("classpath", "build/classes");
         String output = testSection.getOrDefault("output", DEFAULT_OUTPUT);
@@ -43,21 +46,15 @@ public class TestCommandBuilder {
             throw new IllegalStateException("Missing classpath in [test] section of INI file.");
         }
 
-        var javacPath = jdkPath + File.separator + "bin" + File.separator + "javac.exe";
-        var javaPath = jdkPath + File.separator + "bin" + File.separator + "java.exe";
-        if (!new File(javacPath).canRead()) {
-            throw new IllegalStateException("Cannot read " + javacPath);
-        }
-        if (!new File(javaPath).canRead()) {
-            throw new IllegalStateException("Cannot read " + javaPath);
-        }
+        var javacExecutable = resolveJavacExecutable(testSection);
+        var javaExecutable = resolveJavaExecutable(testSection);
 
         var runtimeClasspath = joinClasspath(classpathEntries, output);
         var testClassNames = new ArrayList<String>();
         var testSourceFiles = new ArrayList<Path>();
 
         for (String sourceRoot : sources.split(",")) {
-            var root = new File(sourceRoot.trim());
+            var root = new File(projectDir, sourceRoot.trim());
             if (!root.isDirectory()) {
                 throw new IllegalStateException("Test source path does not exist: " + root.getPath());
             }
@@ -73,13 +70,13 @@ public class TestCommandBuilder {
         }
 
         if (testClassNames.isEmpty()) {
-            return new TestPlan(List.of(), 0, javaPath, runtimeClasspath, runner);
+            return new TestPlan(List.of(), 0, javaExecutable.getPath(), runtimeClasspath, runner);
         }
 
         var commands = new ArrayList<String>();
         var compileClasspath = joinClasspath(classpathEntries);
         var compileCommand = new ArrayList<String>();
-        compileCommand.add(javacPath);
+        compileCommand.add(javacExecutable.getPath());
         compileCommand.add("-encoding");
         compileCommand.add("UTF-8");
         compileCommand.add("-d");
@@ -92,7 +89,7 @@ public class TestCommandBuilder {
         commands.add(String.join(" ", compileCommand));
 
         var runCommand = new ArrayList<String>();
-        runCommand.add(javaPath);
+        runCommand.add(javaExecutable.getPath());
         runCommand.add("-cp");
         runCommand.add(runtimeClasspath);
         runCommand.add(runner);
@@ -104,7 +101,29 @@ public class TestCommandBuilder {
         }
         commands.add(String.join(" ", runCommand));
 
-        return new TestPlan(commands, testClassNames.size(), javaPath, runtimeClasspath, runner);
+        return new TestPlan(commands, testClassNames.size(), javaExecutable.getPath(), runtimeClasspath, runner);
+    }
+
+    private File resolveJavacExecutable(Map<String, String> testSection) {
+        if (!testSection.getOrDefault("path", "").isBlank()) {
+            var executable = new File(new File(projectDir, testSection.get("path").trim()), "bin/javac.exe");
+            if (!executable.canRead()) {
+                throw new IllegalStateException("Cannot read " + executable.getPath());
+            }
+            return executable;
+        }
+        return BuildConfig.javacExecutable(projectDir, iniData);
+    }
+
+    private File resolveJavaExecutable(Map<String, String> testSection) {
+        if (!testSection.getOrDefault("path", "").isBlank()) {
+            var executable = new File(new File(projectDir, testSection.get("path").trim()), "bin/java.exe");
+            if (!executable.canRead()) {
+                throw new IllegalStateException("Cannot read " + executable.getPath());
+            }
+            return executable;
+        }
+        return BuildConfig.javaExecutable(projectDir, iniData);
     }
 
     private String resolveRunner(Map<String, String> testSection) {
@@ -121,17 +140,6 @@ public class TestCommandBuilder {
                     "Unsupported test runner: " + runner + ". Use " + DEFAULT_RUNNER + ".");
         }
         return DEFAULT_RUNNER;
-    }
-
-    private String resolveJdkPath(Map<String, String> testSection) {
-        if (!testSection.getOrDefault("path", "").isBlank()) {
-            return testSection.get("path");
-        }
-        Map<String, String> javacSection = iniData.get("javac");
-        if (javacSection != null && !javacSection.getOrDefault("path", "").isBlank()) {
-            return javacSection.get("path");
-        }
-        throw new IllegalStateException("Missing JDK path. Set [test].path or [javac].path in INI file.");
     }
 
     private List<String> resolveClasspathEntries(String classpath) {

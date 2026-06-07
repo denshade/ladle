@@ -153,6 +153,24 @@ C:\Java\jdk-21\bin\javac.exe -encoding UTF-8 -d build <every .java file under sr
 |-----|----------|---------|-------------|
 | `directory` | no | `build` | Output directory removed by `ladle clear`. |
 
+#### `[subproject]`
+
+Subprojects are built recursively before the current project. Each entry uses `name = path`, where `path` is a directory containing a `build.ini`. The subproject is compiled, packaged as a JAR, and written to `dependencies/{name}.jar` for use when compiling the parent.
+
+Example:
+
+```ini
+[subproject]
+lib = lib
+utils = ../shared/utils
+```
+
+Build order:
+
+1. Build each subproject (and their subprojects) recursively.
+2. Publish each subproject JAR to `dependencies/{name}.jar`.
+3. Compile the current project with those JARs on the classpath.
+
 ### Dependencies (`dependency` command)
 
 The `dependency` command downloads files listed in the INI.
@@ -250,3 +268,5 @@ Workflow:
 | `clear` | `<ini-file>` | Delete the build directory described in the INI file. |
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.
+
+See `examples/` for sample projects used to test builds, including subprojects and a failing compile.
