@@ -6,7 +6,7 @@ So you don't need to know the details.
 Problems are: 
 1. Hard to debug, I added this field, why is it not working or triggered?
 2. Hard to optimize. Where do you even start?
-3. High learning curve if you need to change some out of the ordinary.
+3. High learning curve if you need to change something out of the ordinary.
 4. Low backwards compatibility: New versions require elaborate reconfiguring. 
 5. Custom workflows are done in languages you don't know/have limited experience with. 
 6. Hard to customize small things. How do I add a specific flag to the JVM?
@@ -76,6 +76,7 @@ ladle/
 ```sh
 ladle build build.ini
 ladle dependency build.ini
+ladle test build.ini
 ladle --help
 ```
 
@@ -148,22 +149,63 @@ C:\Java\jdk-21\bin\javac.exe -encoding UTF-8 -d build <every .java file under sr
 
 ### Dependencies (`dependency` command)
 
-The `dependency` command downloads files listed in the INI. It requires a `[dependencies]` section.
+The `dependency` command downloads files listed in the INI.
 
 #### `[dependencies]`
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `implementation` | yes | — | Comma-separated list of URLs. Each URL is downloaded with PowerShell `wget`; the local filename is the last segment of the URL path. |
+| `implementation` | no | — | Comma-separated list of URLs for compile/runtime dependencies. Each URL is saved using the last segment of its path as the filename. |
 
 Example:
 
 ```ini
 [dependencies]
-implementation = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar,https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
+implementation = https://repo1.maven.org/maven2/some/lib/1.0/lib-1.0.jar
 ```
 
-Downloads `junit-4.13.2.jar` and `hamcrest-core-1.3.jar` into the INI file's directory.
+#### `[testdependencies]`
+
+Test dependencies use `name = url` pairs. The name is the local filename written in the INI file's directory. Ladle also adds each name to the test classpath automatically.
+
+Example:
+
+```ini
+[testdependencies]
+junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+hamcrest-core-1.3.jar = https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
+```
+
+If neither `[dependencies]` nor `[testdependencies]` lists anything to download, `ladle dependency` prints a warning and exits successfully.
+
+### Tests (`test` command)
+
+The `test` command compiles test sources and runs them with JUnit 4. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
+
+#### `[test]`
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `sources` | yes | — | Comma-separated test source roots. Ladle finds classes named `*Test.java`. |
+| `classpath` | no | `build/classes` | Comma-separated extra classpath entries. Entries from `[testdependencies]` are added automatically. |
+| `output` | no | `build/test-classes` | Directory for compiled test classes. |
+| `runner` | no | `org.junit.runner.JUnitCore` | Main class used to run tests. |
+| `path` | no | `[javac].path` | JDK root when different from the build JDK. |
+
+Example:
+
+```ini
+[testdependencies]
+junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+
+[test]
+sources = test
+classpath = build/classes
+output = build/test-classes
+runner = org.junit.runner.JUnitCore
+```
+
+If no `*Test.java` files are found, Ladle prints a warning and exits successfully.
 
 ### Full example
 
@@ -175,14 +217,19 @@ parameters = -encoding UTF-8 -d build -cp junit-4.13.2.jar
 [sources]
 paths = src
 
-[dependencies]
-implementation = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+[testdependencies]
+junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+
+[test]
+sources = test
+classpath = build/classes
 ```
 
 Workflow:
 
 1. `ladle dependency build.ini` — fetch JARs.
 2. `ladle build build.ini` — compile sources.
+3. `ladle test build.ini` — compile and run unit tests.
 
 ## Command reference
 
@@ -192,5 +239,6 @@ Workflow:
 | `--help` | — | Print brief usage (exits with status 1). |
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
 | `dependency` | `<ini-file>` | Download dependencies described in the INI file. |
+| `test` | `<ini-file>` | Compile and run unit tests described in the INI file. |
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.

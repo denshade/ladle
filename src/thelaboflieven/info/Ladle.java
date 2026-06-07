@@ -3,6 +3,8 @@ package thelaboflieven.info;
 import thelaboflieven.info.build.BuildPlan;
 import thelaboflieven.info.build.JavacCommandBuilder;
 import thelaboflieven.info.download.DependencyDownloader;
+import thelaboflieven.info.test.TestCommandBuilder;
+import thelaboflieven.info.test.TestPlan;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +28,7 @@ public class Ladle {
         switch (command) {
             case "build" -> runBuild(args);
             case "dependency" -> runDependency(args);
+            case "test" -> runTest(args);
             default -> {
                 System.err.println("Unknown command: " + command);
                 System.err.println("Run ladle --help for usage.");
@@ -65,25 +68,53 @@ public class Ladle {
 
     private static void runDependency(String[] args) throws IOException, InterruptedException {
         var buildIni = resolveIniFile("dependency", args);
+        var builder = new DependencyDownloader(buildIni.getAbsolutePath());
+        var downloaders = builder.download();
+        if (downloaders.isEmpty()) {
+            System.err.println("Warning: no dependencies configured in " + buildIni.getName() + ".");
+            return;
+        }
+
+        System.out.println("Downloading " + downloaders.size() + " dependency file(s) from " + buildIni.getName());
+        var commandRunner = new CommandsRunner(buildIni.getParentFile());
+        var exitCode = commandRunner.run(downloaders);
+        if (exitCode != 0) {
+            System.err.println("Dependency download failed with exit code " + exitCode + ".");
+            System.exit(exitCode);
+        }
+        System.out.println("Dependencies downloaded.");
+    }
+
+    private static void runTest(String[] args) throws IOException, InterruptedException {
+        var buildIni = resolveIniFile("test", args);
         try {
-            var builder = new DependencyDownloader(buildIni.getAbsolutePath());
-            var downloaders = builder.download();
+            var builder = new TestCommandBuilder(buildIni.getAbsolutePath());
+            var plan = builder.buildPlan();
+            if (plan.testClassCount() == 0) {
+                System.err.println("Warning: no test classes found in " + buildIni.getName() + ".");
+                return;
+            }
+            printTestPlan(buildIni, plan);
             var commandRunner = new CommandsRunner(buildIni.getParentFile());
-            var exitCode = commandRunner.run(downloaders);
+            var exitCode = commandRunner.run(plan.commands());
             if (exitCode != 0) {
+                System.err.println("Tests failed with exit code " + exitCode + ".");
                 System.exit(exitCode);
             }
-        } catch (IllegalStateException | NullPointerException e) {
-            System.err.println(missingDependenciesMessage(e));
+            System.out.println("Tests successful.");
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
             System.exit(2);
         }
     }
 
-    private static String missingDependenciesMessage(Exception e) {
-        if (e instanceof NullPointerException) {
-            return "Missing [dependencies] section or implementation key in INI file.";
-        }
-        return e.getMessage();
+    private static void printTestPlan(File buildIni, TestPlan plan) {
+        System.out.println("Testing from " + buildIni.getName());
+        System.out.println("Running " + plan.testClassCount() + " test class(es)");
+        System.out.println("  java: " + plan.javaPath());
+        System.out.println("  classpath: " + plan.classpath());
+        System.out.println("  runner: " + plan.runner());
+        System.out.println("Compiling and running tests...");
     }
 
     private static File resolveIniFile(String command, String[] args) {
@@ -118,6 +149,7 @@ public class Ladle {
         System.out.println("Usage:");
         System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
         System.out.println("  ladle dependency [<ini-file>] Download dependencies (default: build.ini)");
+        System.out.println("  ladle test [<ini-file>]        Run unit tests (default: build.ini)");
         System.out.println("  ladle --help                   Show this help message");
     }
 }
