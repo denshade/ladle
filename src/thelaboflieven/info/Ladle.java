@@ -1,5 +1,6 @@
 package thelaboflieven.info;
 
+import thelaboflieven.info.build.BuildCleaner;
 import thelaboflieven.info.build.BuildPlan;
 import thelaboflieven.info.build.JavacCommandBuilder;
 import thelaboflieven.info.download.DependencyDownloader;
@@ -29,6 +30,7 @@ public class Ladle {
             case "build" -> runBuild(args);
             case "dependency" -> runDependency(args);
             case "test" -> runTest(args);
+            case "clear" -> runClear(args);
             default -> {
                 System.err.println("Unknown command: " + command);
                 System.err.println("Run ladle --help for usage.");
@@ -108,6 +110,17 @@ public class Ladle {
         }
     }
 
+    private static void runClear(String[] args) throws IOException {
+        var buildIni = resolveIniFile("clear", args);
+        var cleaner = new BuildCleaner(buildIni.getAbsolutePath());
+        var cleared = cleaner.clear(buildIni.getParentFile());
+        if (!cleared) {
+            System.err.println("Warning: build directory '" + cleaner.buildDirectory() + "' does not exist.");
+            return;
+        }
+        System.out.println("Cleared " + cleaner.buildDirectory() + "/");
+    }
+
     private static void printTestPlan(File buildIni, TestPlan plan) {
         System.out.println("Testing from " + buildIni.getName());
         System.out.println("Running " + plan.testClassCount() + " test class(es) with JUnit 5");
@@ -152,6 +165,7 @@ public class Ladle {
         System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
         System.out.println("  ladle dependency [<ini-file>] Download dependencies (default: build.ini)");
         System.out.println("  ladle test [<ini-file>]        Run unit tests (default: build.ini)");
+        System.out.println("  ladle clear [<ini-file>]       Delete the build directory (default: build.ini)");
         System.out.println("  ladle --help                   Show this help message");
     }
 }

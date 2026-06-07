@@ -1,7 +1,7 @@
 package thelaboflieven.info.test;
 
 import thelaboflieven.info.inifile.IniFileReader;
-import thelaboflieven.info.download.DependencyPaths;
+import thelaboflieven.info.download.TestDependencies;
 
 import java.io.File;
 import java.io.IOException;
@@ -138,21 +138,19 @@ public class TestCommandBuilder {
         var entries = splitEntries(classpath);
         Map<String, String> testDependencies = iniData.get("testdependencies");
         if (testDependencies != null) {
-            for (String name : testDependencies.keySet()) {
-                name = name.trim();
-                if (!name.isBlank()) {
-                    var path = dependencyPath(name);
-                    if (!entries.contains(path)) {
-                        entries.add(path);
-                    }
+            for (var entry : testDependencies.entrySet()) {
+                var name = entry.getKey().trim();
+                var url = entry.getValue().trim();
+                if (name.isBlank() || url.isBlank()) {
+                    continue;
+                }
+                var path = TestDependencies.localPath(name, url);
+                if (!entries.contains(path)) {
+                    entries.add(path);
                 }
             }
         }
         return entries;
-    }
-
-    private String dependencyPath(String fileName) {
-        return DependencyPaths.localPath(fileName);
     }
 
     private String joinClasspath(List<String> entries) {

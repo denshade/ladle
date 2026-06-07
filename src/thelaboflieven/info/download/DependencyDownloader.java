@@ -60,7 +60,7 @@ public class DependencyDownloader {
             if (name.isBlank() || url.isBlank()) {
                 continue;
             }
-            commands.add(downloadCommand(url, name));
+            commands.add(downloadCommand(url, TestDependencies.fileName(name, url)));
         }
     }
 

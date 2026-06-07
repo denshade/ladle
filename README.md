@@ -147,6 +147,12 @@ C:\Java\jdk-21\bin\javac.exe -encoding UTF-8 -d build <every .java file under sr
 
 **Path limitation:** Ladle splits the final command on spaces before execution. Values in `path`, `parameters`, and comma-separated entries in `paths` must not contain spaces. Use a JDK install path without spaces, or a directory junction/symlink to one.
 
+#### `[build]`
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `directory` | no | `build` | Output directory removed by `ladle clear`. |
+
 ### Dependencies (`dependency` command)
 
 The `dependency` command downloads files listed in the INI.
@@ -166,13 +172,14 @@ implementation = https://repo1.maven.org/maven2/some/lib/1.0/lib-1.0.jar
 
 #### `[testdependencies]`
 
-Test dependencies use `name = url` pairs. The name is the filename saved under `dependencies/`. Ladle also adds each file to the test classpath automatically.
+Test dependencies use `name = url` pairs. The name may be a local JAR filename or a Java package (for example `org.junit.jupiter.api`); package names are saved using the filename from the URL. Files are written under `dependencies/`. Ladle adds each dependency to the test classpath automatically.
 
 Example:
 
 ```ini
 [testdependencies]
-junit-platform-console-standalone-1.11.4.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.4/junit-platform-console-standalone-1.11.4.jar
+org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-jupiter-api/6.1.0/junit-jupiter-api-6.1.0.jar
+junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
 ```
 
 If neither `[dependencies]` nor `[testdependencies]` lists anything to download, `ladle dependency` prints a warning and exits successfully.
@@ -195,7 +202,8 @@ Example:
 
 ```ini
 [testdependencies]
-junit-platform-console-standalone-1.11.4.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.4/junit-platform-console-standalone-1.11.4.jar
+org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-jupiter-api/6.1.0/junit-jupiter-api-6.1.0.jar
+junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
 
 [test]
 sources = test
@@ -216,7 +224,8 @@ parameters = -encoding UTF-8 -d build/classes
 paths = src
 
 [testdependencies]
-junit-platform-console-standalone-1.11.4.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.4/junit-platform-console-standalone-1.11.4.jar
+org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-jupiter-api/6.1.0/junit-jupiter-api-6.1.0.jar
+junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
 
 [test]
 sources = test
@@ -238,5 +247,6 @@ Workflow:
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
 | `dependency` | `<ini-file>` | Download dependencies described in the INI file. |
 | `test` | `<ini-file>` | Compile and run unit tests described in the INI file. |
+| `clear` | `<ini-file>` | Delete the build directory described in the INI file. |
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.
