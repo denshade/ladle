@@ -15,16 +15,25 @@ public class DependencyDownloader {
     }
 
     public List<String> download() {
-        var commands = new ArrayList<String>();
+        var downloads = new ArrayList<String>();
+
         Map<String, String> dependencies = iniData.get("dependencies");
         if (dependencies != null) {
-            addDownloadsFromList(commands, dependencies.get("implementation"));
+            addDownloadsFromList(downloads, dependencies.get("implementation"));
         }
 
         Map<String, String> testDependencies = iniData.get("testdependencies");
         if (testDependencies != null) {
-            addDownloadsFromPairs(commands, testDependencies);
+            addDownloadsFromPairs(downloads, testDependencies);
         }
+
+        if (downloads.isEmpty()) {
+            return downloads;
+        }
+
+        var commands = new ArrayList<String>();
+        commands.add("powershell.exe New-Item -ItemType Directory -Force -Path " + DependencyPaths.DIRECTORY);
+        commands.addAll(downloads);
         return commands;
     }
 
@@ -40,7 +49,7 @@ public class DependencyDownloader {
             }
             var urlParts = url.split("/");
             var fileName = urlParts[urlParts.length - 1];
-            commands.add("powershell.exe wget " + url + "  -OutFile " + fileName);
+            commands.add(downloadCommand(url, fileName));
         }
     }
 
@@ -51,7 +60,11 @@ public class DependencyDownloader {
             if (name.isBlank() || url.isBlank()) {
                 continue;
             }
-            commands.add("powershell.exe wget " + url + "  -OutFile " + name);
+            commands.add(downloadCommand(url, name));
         }
+    }
+
+    private String downloadCommand(String url, String fileName) {
+        return "powershell.exe wget " + url + " -OutFile " + DependencyPaths.localPath(fileName);
     }
 }

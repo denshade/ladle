@@ -1,6 +1,7 @@
 package thelaboflieven.info.test;
 
 import thelaboflieven.info.inifile.IniFileReader;
+import thelaboflieven.info.download.DependencyPaths;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TestCommandBuilder {
-    private static final String DEFAULT_RUNNER = "org.junit.runner.JUnitCore";
+    private static final String DEFAULT_RUNNER = "org.junit.platform.console.ConsoleLauncher";
     private static final String DEFAULT_OUTPUT = "build/test-classes";
 
     private final Map<String, Map<String, String>> iniData;
@@ -31,7 +32,7 @@ public class TestCommandBuilder {
         String sources = testSection.getOrDefault("sources", "");
         String classpath = testSection.getOrDefault("classpath", "build/classes");
         String output = testSection.getOrDefault("output", DEFAULT_OUTPUT);
-        String runner = testSection.getOrDefault("runner", DEFAULT_RUNNER);
+        String runner = resolveRunner(testSection);
 
         if (sources.isBlank()) {
             throw new IllegalStateException("Missing sources in [test] section of INI file.");
@@ -95,10 +96,29 @@ public class TestCommandBuilder {
         runCommand.add("-cp");
         runCommand.add(runtimeClasspath);
         runCommand.add(runner);
-        runCommand.addAll(testClassNames);
+        for (var testClassName : testClassNames) {
+            runCommand.add("--select-class");
+            runCommand.add(testClassName);
+        }
         commands.add(String.join(" ", runCommand));
 
         return new TestPlan(commands, testClassNames.size(), javaPath, runtimeClasspath, runner);
+    }
+
+    private String resolveRunner(Map<String, String> testSection) {
+        String runner = testSection.getOrDefault("runner", DEFAULT_RUNNER).trim();
+        if (runner.isBlank()) {
+            return DEFAULT_RUNNER;
+        }
+        if (runner.contains("JUnitCore")) {
+            throw new IllegalStateException(
+                    "JUnit 4 runner is not supported. Remove [test].runner from build.ini to use JUnit 5.");
+        }
+        if (!runner.equals(DEFAULT_RUNNER)) {
+            throw new IllegalStateException(
+                    "Unsupported test runner: " + runner + ". Use " + DEFAULT_RUNNER + ".");
+        }
+        return DEFAULT_RUNNER;
     }
 
     private String resolveJdkPath(Map<String, String> testSection) {
@@ -118,12 +138,19 @@ public class TestCommandBuilder {
         if (testDependencies != null) {
             for (String name : testDependencies.keySet()) {
                 name = name.trim();
-                if (!name.isBlank() && !entries.contains(name)) {
-                    entries.add(name);
+                if (!name.isBlank()) {
+                    var path = dependencyPath(name);
+                    if (!entries.contains(path)) {
+                        entries.add(path);
+                    }
                 }
             }
         }
         return entries;
+    }
+
+    private String dependencyPath(String fileName) {
+        return DependencyPaths.localPath(fileName);
     }
 
     private String joinClasspath(List<String> entries) {

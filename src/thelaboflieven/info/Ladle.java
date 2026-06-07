@@ -75,7 +75,7 @@ public class Ladle {
             return;
         }
 
-        System.out.println("Downloading " + downloaders.size() + " dependency file(s) from " + buildIni.getName());
+        System.out.println("Downloading " + (downloaders.size() - 1) + " dependency file(s) to dependencies/ from " + buildIni.getName());
         var commandRunner = new CommandsRunner(buildIni.getParentFile());
         var exitCode = commandRunner.run(downloaders);
         if (exitCode != 0) {
@@ -110,11 +110,13 @@ public class Ladle {
 
     private static void printTestPlan(File buildIni, TestPlan plan) {
         System.out.println("Testing from " + buildIni.getName());
-        System.out.println("Running " + plan.testClassCount() + " test class(es)");
+        System.out.println("Running " + plan.testClassCount() + " test class(es) with JUnit 5");
         System.out.println("  java: " + plan.javaPath());
         System.out.println("  classpath: " + plan.classpath());
         System.out.println("  runner: " + plan.runner());
-        System.out.println("Compiling and running tests...");
+        for (int i = 0; i < plan.commands().size(); i++) {
+            System.out.println("  command " + (i + 1) + ": " + plan.commands().get(i));
+        }
     }
 
     private static File resolveIniFile(String command, String[] args) {
@@ -139,13 +141,13 @@ public class Ladle {
     }
 
     private static void printWelcome() {
-        System.out.println("thelaboflieven.info.Ladle version 0.1");
-        System.out.println("Welcome to thelaboflieven.info.Ladle 0.1");
+        System.out.println("thelaboflieven.info.Ladle version 0.2");
+        System.out.println("Welcome to thelaboflieven.info.Ladle 0.2");
         System.out.println("To see a list of command-line options, run ladle --help\n");
     }
 
     private static void printHelp() {
-        System.out.println("thelaboflieven.info.Ladle version 0.1");
+        System.out.println("thelaboflieven.info.Ladle version 0.2");
         System.out.println("Usage:");
         System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
         System.out.println("  ladle dependency [<ini-file>] Download dependencies (default: build.ini)");

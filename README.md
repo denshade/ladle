@@ -155,7 +155,7 @@ The `dependency` command downloads files listed in the INI.
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `implementation` | no | — | Comma-separated list of URLs for compile/runtime dependencies. Each URL is saved using the last segment of its path as the filename. |
+| `implementation` | no | — | Comma-separated list of URLs for compile/runtime dependencies. Each URL is saved to `dependencies/` using the last segment of its path as the filename. |
 
 Example:
 
@@ -166,21 +166,20 @@ implementation = https://repo1.maven.org/maven2/some/lib/1.0/lib-1.0.jar
 
 #### `[testdependencies]`
 
-Test dependencies use `name = url` pairs. The name is the local filename written in the INI file's directory. Ladle also adds each name to the test classpath automatically.
+Test dependencies use `name = url` pairs. The name is the filename saved under `dependencies/`. Ladle also adds each file to the test classpath automatically.
 
 Example:
 
 ```ini
 [testdependencies]
-junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
-hamcrest-core-1.3.jar = https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
+junit-platform-console-standalone-1.11.4.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.4/junit-platform-console-standalone-1.11.4.jar
 ```
 
 If neither `[dependencies]` nor `[testdependencies]` lists anything to download, `ladle dependency` prints a warning and exits successfully.
 
 ### Tests (`test` command)
 
-The `test` command compiles test sources and runs them with JUnit 4. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
+The `test` command compiles test sources and runs them with JUnit 5. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
 
 #### `[test]`
 
@@ -189,20 +188,19 @@ The `test` command compiles test sources and runs them with JUnit 4. It requires
 | `sources` | yes | — | Comma-separated test source roots. Ladle finds classes named `*Test.java`. |
 | `classpath` | no | `build/classes` | Comma-separated extra classpath entries. Entries from `[testdependencies]` are added automatically. |
 | `output` | no | `build/test-classes` | Directory for compiled test classes. |
-| `runner` | no | `org.junit.runner.JUnitCore` | Main class used to run tests. |
+| `runner` | no | `org.junit.platform.console.ConsoleLauncher` | Main class used to run tests. Ladle passes `--select-class` for each `*Test` class found. |
 | `path` | no | `[javac].path` | JDK root when different from the build JDK. |
 
 Example:
 
 ```ini
 [testdependencies]
-junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+junit-platform-console-standalone-1.11.4.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.4/junit-platform-console-standalone-1.11.4.jar
 
 [test]
 sources = test
 classpath = build/classes
 output = build/test-classes
-runner = org.junit.runner.JUnitCore
 ```
 
 If no `*Test.java` files are found, Ladle prints a warning and exits successfully.
@@ -212,13 +210,13 @@ If no `*Test.java` files are found, Ladle prints a warning and exits successfull
 ```ini
 [javac]
 path = C:\Java\jdk-21
-parameters = -encoding UTF-8 -d build -cp junit-4.13.2.jar
+parameters = -encoding UTF-8 -d build/classes
 
 [sources]
 paths = src
 
 [testdependencies]
-junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+junit-platform-console-standalone-1.11.4.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.4/junit-platform-console-standalone-1.11.4.jar
 
 [test]
 sources = test

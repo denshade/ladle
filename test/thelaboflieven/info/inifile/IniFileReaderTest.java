@@ -1,15 +1,15 @@
 package thelaboflieven.info.inifile;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileWriter;
 import java.nio.file.Files;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class IniFileReaderTest {
     @Test
-    public void parsesSectionAndKey() throws Exception {
+    void parsesSectionAndKey() throws Exception {
         var temp = Files.createTempFile("ladle", ".ini");
         try (var writer = new FileWriter(temp.toFile())) {
             writer.write("[main]\nkey = value\n");
