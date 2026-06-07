@@ -96,6 +96,8 @@ public class TestCommandBuilder {
         runCommand.add("-cp");
         runCommand.add(runtimeClasspath);
         runCommand.add(runner);
+        runCommand.add("execute");
+        runCommand.add("--details-theme=ascii");
         for (var testClassName : testClassNames) {
             runCommand.add("--select-class");
             runCommand.add(testClassName);

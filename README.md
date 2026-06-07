@@ -188,7 +188,7 @@ The `test` command compiles test sources and runs them with JUnit 5. It requires
 | `sources` | yes | — | Comma-separated test source roots. Ladle finds classes named `*Test.java`. |
 | `classpath` | no | `build/classes` | Comma-separated extra classpath entries. Entries from `[testdependencies]` are added automatically. |
 | `output` | no | `build/test-classes` | Directory for compiled test classes. |
-| `runner` | no | `org.junit.platform.console.ConsoleLauncher` | Main class used to run tests. Ladle passes `--select-class` for each `*Test` class found. |
+| `runner` | no | `org.junit.platform.console.ConsoleLauncher` | Main class used to run tests. Ladle invokes `execute --details-theme=ascii --select-class` for each `*Test` class found. |
 | `path` | no | `[javac].path` | JDK root when different from the build JDK. |
 
 Example:
