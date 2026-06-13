@@ -56,8 +56,10 @@ fi
 
 mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/lib"
 cp "$ROOT/bin/ladle" "$INSTALL_DIR/bin/ladle"
+cp "$ROOT/bin/download.sh" "$INSTALL_DIR/bin/download.sh"
 cp "$ROOT/lib/ladle.jar" "$INSTALL_DIR/lib/ladle.jar"
 chmod +x "$INSTALL_DIR/bin/ladle"
+chmod +x "$INSTALL_DIR/bin/download.sh"
 
 PATH_LINE="export PATH=\"\$LADLE_HOME/bin:\$PATH\""
 HOME_LINE="export LADLE_HOME=\"$INSTALL_DIR\""

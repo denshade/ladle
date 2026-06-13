@@ -38,6 +38,9 @@ New-Item -ItemType Directory -Force -Path $BinDir, $LibDir | Out-Null
 Copy-Item -Force (Join-Path $Root "bin\ladle.cmd") (Join-Path $BinDir "ladle.cmd")
 Copy-Item -Force (Join-Path $Root "bin\ladle.bat") (Join-Path $BinDir "ladle.bat")
 Copy-Item -Force (Join-Path $Root "bin\ladle.ps1") (Join-Path $BinDir "ladle.ps1")
+Copy-Item -Force (Join-Path $Root "bin\download.ps1") (Join-Path $BinDir "download.ps1")
+Copy-Item -Force (Join-Path $Root "bin\download.cmd") (Join-Path $BinDir "download.cmd")
+Copy-Item -Force (Join-Path $Root "bin\download.bat") (Join-Path $BinDir "download.bat")
 Copy-Item -Force (Join-Path $Root "lib\ladle.jar") $Jar
 
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -61,3 +64,4 @@ Write-Host "Open a new terminal, then use ladle from any directory:"
 Write-Host ""
 Write-Host "  ladle build build.ini"
 Write-Host "  ladle dependency build.ini"
+Write-Host "  download build.ini"

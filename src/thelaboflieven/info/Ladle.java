@@ -3,7 +3,7 @@ package thelaboflieven.info;
 import thelaboflieven.info.build.BuildFailedException;
 import thelaboflieven.info.build.BuildOrchestrator;
 import thelaboflieven.info.build.BuildCleaner;
-import thelaboflieven.info.download.DependencyDownloader;
+import thelaboflieven.info.download.DependencyInstaller;
 import thelaboflieven.info.test.TestCommandBuilder;
 import thelaboflieven.info.test.TestPlan;
 
@@ -52,23 +52,17 @@ public class Ladle {
         }
     }
 
-    private static void runDependency(String[] args) throws IOException, InterruptedException {
+    private static void runDependency(String[] args) throws IOException {
         var buildIni = resolveIniFile("dependency", args);
-        var builder = new DependencyDownloader(buildIni.getAbsolutePath());
-        var downloaders = builder.download();
-        if (downloaders.isEmpty()) {
+        var installer = new DependencyInstaller(buildIni.getAbsolutePath());
+        var artifacts = installer.artifacts();
+        if (artifacts.isEmpty()) {
             System.err.println("Warning: no dependencies configured in " + buildIni.getName() + ".");
             return;
         }
-
-        System.out.println("Downloading " + (downloaders.size() - 1) + " dependency file(s) to dependencies/ from " + buildIni.getName());
-        var commandRunner = new CommandsRunner(buildIni.getParentFile());
-        var exitCode = commandRunner.run(downloaders);
-        if (exitCode != 0) {
-            System.err.println("Dependency download failed with exit code " + exitCode + ".");
-            System.exit(exitCode);
-        }
-        System.out.println("Dependencies downloaded.");
+        System.out.println("Downloading " + artifacts.size() + " dependency file(s) to dependencies/ from " + buildIni.getName() + ":");
+        installer.install(buildIni.getParentFile());
+        System.out.println("Dependencies installed.");
     }
 
     private static void runTest(String[] args) throws IOException, InterruptedException {

@@ -173,7 +173,19 @@ Build order:
 
 ### Dependencies (`dependency` command)
 
-The `dependency` command downloads files listed in the INI.
+The `dependency` command downloads JARs listed in the INI into the project-local `dependencies/` directory (similar to Gradle's dependency cache, but stored in the project).
+
+You can also use the download scripts from a project directory:
+
+```powershell
+.\download.ps1
+```
+
+```sh
+./download.sh
+```
+
+Copy `download.ps1` / `download.sh` from `bin/` into your project, or run them from an installed Ladle (`download` on PATH after `install.ps1` / `install.sh`).
 
 #### `[dependencies]`
 
