@@ -64,8 +64,7 @@ public class DependencyInstaller {
             if (url.isBlank()) {
                 continue;
             }
-            var urlParts = url.split("/");
-            artifacts.add(new DependencyArtifact(url, urlParts[urlParts.length - 1]));
+            artifacts.add(new DependencyArtifact(url, ImplementationDependencies.fileName(url)));
         }
     }
 

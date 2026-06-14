@@ -5,6 +5,6 @@ public record BuildPlan(
         int sourceFileCount,
         String javacPath,
         String parameters,
-        String subprojectClasspath
+        String classpath
 ) {
 }

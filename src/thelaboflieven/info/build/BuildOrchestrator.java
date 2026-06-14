@@ -116,8 +116,8 @@ public class BuildOrchestrator {
         if (!plan.parameters().isBlank()) {
             System.out.println("  parameters: " + plan.parameters());
         }
-        if (!plan.subprojectClasspath().isBlank()) {
-            System.out.println("  subprojects: " + plan.subprojectClasspath());
+        if (!plan.classpath().isBlank()) {
+            System.out.println("  classpath: " + plan.classpath());
         }
         System.out.println("Running javac...");
     }

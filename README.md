@@ -128,6 +128,8 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 |-----|----------|---------|-------------|
 | `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
 
+During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`) and from `[dependencies].implementation` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so implementation JARs exist on disk.
+
 Example `build.ini`:
 
 ```ini
@@ -191,7 +193,7 @@ Copy `download.ps1` / `download.sh` from `bin/` into your project, or run them f
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `implementation` | no | — | Comma-separated list of URLs for compile/runtime dependencies. Each URL is saved to `dependencies/` using the last segment of its path as the filename. |
+| `implementation` | no | — | Comma-separated list of URLs for compile/runtime dependencies. Each URL is saved to `dependencies/` using the last segment of its path as the filename. Ladle adds these JARs to the `javac` classpath during `ladle build`. |
 
 Example:
 

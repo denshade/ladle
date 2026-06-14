@@ -1,7 +1,6 @@
 package thelaboflieven.info.build;
 
 
-import thelaboflieven.info.download.DependencyPaths;
 import thelaboflieven.info.inifile.IniFileReader;
 
 import java.io.*;
@@ -35,15 +34,15 @@ public class JavacCommandBuilder {
             throw new IllegalStateException("Missing paths in [sources] section of INI file.");
         }
 
-        String subprojectClasspath = resolveSubprojectClasspath();
+        String classpath = CompileClasspath.resolve(projectDir, iniData);
 
         List<String> command = new ArrayList<>();
         var javacExecutable = BuildConfig.javacExecutable(projectDir, iniData);
         command.add(javacExecutable.getPath());
 
-        if (!subprojectClasspath.isBlank()) {
+        if (!classpath.isBlank()) {
             command.add("-cp");
-            command.add(subprojectClasspath);
+            command.add(classpath);
         }
         if (!parameters.isBlank()) {
             command.add(parameters);
@@ -69,29 +68,8 @@ public class JavacCommandBuilder {
                 sourceFileCount,
                 javacExecutable.getPath(),
                 parameters,
-                subprojectClasspath
+                classpath
         );
-    }
-
-    private String resolveSubprojectClasspath() {
-        Map<String, String> subprojects = iniData.get("subproject");
-        if (subprojects == null) {
-            return "";
-        }
-
-        var entries = new ArrayList<String>();
-        for (String name : subprojects.keySet()) {
-            name = name.trim();
-            if (name.isBlank()) {
-                continue;
-            }
-            var jarFile = new File(projectDir, DependencyPaths.localPath(name + ".jar"));
-            if (!jarFile.canRead()) {
-                throw new IllegalStateException("Missing subproject jar: " + jarFile.getPath());
-            }
-            entries.add(DependencyPaths.localPath(name + ".jar"));
-        }
-        return String.join(String.valueOf(File.pathSeparatorChar), entries);
     }
 
 }
