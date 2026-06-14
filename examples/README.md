@@ -26,6 +26,18 @@ A library subproject is built first; its JAR is published to `app/dependencies/l
 
 Expected: exit code 0, `examples/subprojects/app/dependencies/lib.jar` exists.
 
+Standalone release of the library:
+
+```powershell
+.\bin\ladle.ps1 release examples\subprojects\lib\build.ini
+```
+
+```sh
+./bin/ladle release examples/subprojects/lib/build.ini
+```
+
+Expected: exit code 0, `examples/subprojects/lib/build/lib.jar` exists.
+
 ## Failing build
 
 Contains a Java compile error on purpose.

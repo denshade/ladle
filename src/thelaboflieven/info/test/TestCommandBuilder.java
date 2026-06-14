@@ -87,6 +87,10 @@ public class TestCommandBuilder {
         compileCommand.add(output);
         compileCommand.add("-cp");
         compileCommand.add(compileClasspath);
+        var javacSection = iniData.get("javac");
+        if (javacSection != null) {
+            compileCommand.addAll(BuildConfig.javacVersionFlags(javacSection));
+        }
         for (var testSourceFile : testSourceFiles) {
             compileCommand.add(testSourceFile.toAbsolutePath().toString());
         }

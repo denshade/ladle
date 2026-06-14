@@ -36,6 +36,7 @@ Run from the project root:
 
 ```sh
 ./bin/ladle build build.ini
+./bin/ladle release build.ini
 ./bin/ladle dependency build.ini
 ./bin/ladle test build.ini
 ./bin/ladle --help
@@ -80,6 +81,7 @@ Run Ladle with a path to your build INI file:
 
 ```sh
 ./bin/ladle build build.ini
+./bin/ladle release build.ini
 ./bin/ladle dependency build.ini
 ```
 
@@ -108,6 +110,9 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 | `download.windows` | no | — | Windows JDK archive URL. Used when `path` points at a missing local JDK. |
 | `download.linux` | no | — | Linux JDK archive URL. |
 | `download.macos` | no | — | macOS JDK archive URL. |
+| `release` | no | — | Java platform version for `javac --release` (for example `17` or `21`). Prefer this over `source`/`target`. |
+| `source` | no | — | Java source language level for `javac -source` (for example `17`). |
+| `target` | no | — | Java bytecode level for `javac -target` (for example `17`). |
 | `parameters` | no | *(empty)* | Extra arguments passed to `javac`, separated by spaces (for example `-encoding UTF-8 -d build`). |
 
 #### `[sources]`
@@ -143,10 +148,21 @@ path = .jdk
 download.windows = https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse
 download.linux = https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse
 download.macos = https://api.adoptium.net/v3/binary/latest/21/ga/mac/x64/jdk/hotspot/normal/eclipse
+release = 21
 parameters = -encoding UTF-8 -d build/classes
 
 [sources]
 paths = src
+```
+
+Or set source and target separately:
+
+```ini
+[javac]
+path = .jdk
+source = 17
+target = 17
+parameters = -encoding UTF-8 -d build/classes
 ```
 
 Or use an installed JDK explicitly:
@@ -174,7 +190,38 @@ On Windows, tool names use the `.exe` suffix (`javac.exe`, `java.exe`, `jar.exe`
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `directory` | no | `build` | Output directory removed by `ladle clear`. |
+| `directory` | no | `build` | Output directory removed by `ladle clear`. Also the default JAR output directory for `ladle release`. |
+
+#### `[jar]`
+
+Required for `ladle release`. Describes the JAR written after compilation and resource copying.
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `name` | no | project directory name | Output JAR filename without the `.jar` extension. |
+| `directory` | no | `[build].directory` | Directory that receives the JAR (for example `build` or `lib`). |
+| `manifest` | no | — | Path to a `MANIFEST.MF` file relative to the project directory. When set, Ladle runs `jar cfm` instead of `jar cf`. |
+| `main-class` | no | — | Shorthand for a generated manifest with `Main-Class`. Ignored when `manifest` is set. |
+| *other keys* | no | — | Additional manifest attributes when no `manifest` file is configured (for example `premain-class = org.example.Agent`). |
+
+Example:
+
+```ini
+[jar]
+name = ladle
+directory = lib
+manifest = manifest/MANIFEST.MF
+```
+
+Or without a manifest file:
+
+```ini
+[jar]
+name = ladle
+main-class = thelaboflieven.info.Ladle
+```
+
+This writes `build/myapp.jar` when you run `./bin/ladle release build.ini`.
 
 #### `[subproject]`
 
@@ -293,7 +340,8 @@ Workflow:
 
 1. `./bin/ladle dependency build.ini` — fetch JDK and JARs.
 2. `./bin/ladle build build.ini` — compile sources.
-3. `./bin/ladle test build.ini` — compile and run unit tests.
+3. `./bin/ladle release build.ini` — compile sources and package a JAR (requires `[jar]`).
+4. `./bin/ladle test build.ini` — compile and run unit tests.
 
 ## Command reference
 
@@ -302,6 +350,7 @@ Workflow:
 | *(none)* | — | Print welcome message. |
 | `--help` | — | Print brief usage (exits with status 1). |
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
+| `release` | `<ini-file>` | Compile sources, copy resources, and package a JAR (requires `[jar]`). |
 | `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file. |
 | `test` | `<ini-file>` | Compile and run unit tests described in the INI file. |
 | `clear` | `<ini-file>` | Delete the build directory described in the INI file. |

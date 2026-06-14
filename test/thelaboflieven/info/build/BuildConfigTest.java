@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -42,5 +44,35 @@ public class BuildConfigTest {
         new File(jdkRoot, "bin").mkdirs();
 
         assertThrows(IllegalStateException.class, () -> BuildConfig.toolExecutable(jdkRoot, "javac"));
+    }
+
+    @Test
+    void javacVersionFlagsUsesRelease() {
+        var flags = BuildConfig.javacVersionFlags(Map.of("release", "21"));
+
+        assertEquals(List.of("--release", "21"), flags);
+    }
+
+    @Test
+    void javacVersionFlagsUsesSourceAndTarget() {
+        var flags = BuildConfig.javacVersionFlags(Map.of("source", "17", "target", "17"));
+
+        assertEquals(List.of("-source", "17", "-target", "17"), flags);
+    }
+
+    @Test
+    void javacVersionFlagsRejectsReleaseWithSourceOrTarget() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> BuildConfig.javacVersionFlags(Map.of("release", "21", "source", "17")));
+    }
+
+    @Test
+    void javacParameterSummaryCombinesVersionFlagsAndParameters() {
+        var summary = BuildConfig.javacParameterSummary(Map.of(
+                "release", "21",
+                "parameters", "-encoding UTF-8 -d build/classes"));
+
+        assertEquals("--release 21 -encoding UTF-8 -d build/classes", summary);
     }
 }

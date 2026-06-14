@@ -46,15 +46,13 @@ Ladle copies non-Java files from `[resources]` into the classes directory after 
 
 ## 4. JAR packaging for root modules
 
-**Status:** open
+**Status:** fixed (partial — `ladle release`, `[jar]` name/directory/manifest; no include/exclude support yet)
 
-`jar` is only invoked when a module is built as a **subproject** (published to `dependencies/{name}.jar`). The root module of a build gets compile-only; there is no `ladle jar` command and no manifest/exclude support.
+`ladle release` compiles the root module, copies resources, and packages a JAR using `[jar].name` and `[jar].directory`. Subprojects are still published automatically to `dependencies/{name}.jar` during parent builds.
 
-**Affected code:** [BuildOrchestrator.java](src/thelaboflieven/info/build/BuildOrchestrator.java), [JarCommandBuilder.java](src/thelaboflieven/info/build/JarCommandBuilder.java)
+**Affected code:** [BuildOrchestrator.java](src/thelaboflieven/info/build/BuildOrchestrator.java), [JarCommandBuilder.java](src/thelaboflieven/info/build/JarCommandBuilder.java), [Ladle.java](src/thelaboflieven/info/Ladle.java)
 
-**Impact:** Mockito core is the root module and needs a production JAR with manifest attributes (`Premain-Class`, `Can-Retransform-Classes`), excluded classes, and bundled resources. Subproject JARs are a bare `jar cf` with no customization.
-
-**Fix direction:** Add `ladle jar` (or a `[jar]` INI section) with manifest entries, include/exclude patterns, and optional main-class / agent attributes.
+**Remaining gap:** Include/exclude patterns for packaged entries.
 
 ---
 

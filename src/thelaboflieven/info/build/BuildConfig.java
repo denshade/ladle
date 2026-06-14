@@ -4,6 +4,8 @@ import thelaboflieven.info.inifile.IniEnvironment;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -79,6 +81,50 @@ public final class BuildConfig {
             return tool + ".exe";
         }
         return tool;
+    }
+
+    public static List<String> javacVersionFlags(Map<String, String> javacSection) {
+        if (javacSection == null) {
+            return List.of();
+        }
+
+        var release = javacSection.getOrDefault("release", "").trim();
+        var source = javacSection.getOrDefault("source", "").trim();
+        var target = javacSection.getOrDefault("target", "").trim();
+
+        if (!release.isBlank() && (!source.isBlank() || !target.isBlank())) {
+            throw new IllegalStateException(
+                    "Use either [javac].release or [javac].source/[javac].target, not both.");
+        }
+        if (!release.isBlank()) {
+            return List.of("--release", release);
+        }
+
+        var flags = new ArrayList<String>();
+        if (!source.isBlank()) {
+            flags.add("-source");
+            flags.add(source);
+        }
+        if (!target.isBlank()) {
+            flags.add("-target");
+            flags.add(target);
+        }
+        return flags;
+    }
+
+    public static String javacParameterSummary(Map<String, String> javacSection) {
+        if (javacSection == null) {
+            return "";
+        }
+        var versionFlags = String.join(" ", javacVersionFlags(javacSection));
+        var parameters = javacSection.getOrDefault("parameters", "").trim();
+        if (versionFlags.isBlank()) {
+            return parameters;
+        }
+        if (parameters.isBlank()) {
+            return versionFlags;
+        }
+        return versionFlags + " " + parameters;
     }
 
     private static String findFlagValue(String parameters, String flag, String defaultValue) {

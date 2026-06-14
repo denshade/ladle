@@ -19,6 +19,14 @@ public class BuildOrchestrator {
         build(iniFile, null, null, new HashSet<>());
     }
 
+    public void release(File iniFile) throws IOException, InterruptedException {
+        build(iniFile);
+        var projectDir = iniFile.getParentFile();
+        var runner = new CommandsRunner(projectDir);
+        packageReleaseJar(iniFile, runner);
+        System.out.println("Release successful.");
+    }
+
     private void build(
             File iniFile,
             File publishJarTo,
@@ -54,7 +62,7 @@ public class BuildOrchestrator {
             }
 
             if (publishJarTo != null && publishJarName != null) {
-                publishJar(iniFile, runner, publishJarTo, publishJarName);
+                packageJar(iniFile, runner, new File(publishJarTo, publishJarName + ".jar"));
             }
 
             System.out.println("Build successful.");
@@ -80,20 +88,34 @@ public class BuildOrchestrator {
         build(subIni, publishDir, subproject.name(), visitedInChain);
     }
 
-    private void publishJar(File iniFile, CommandsRunner runner, File targetDir, String name)
+    private void packageReleaseJar(File iniFile, CommandsRunner runner)
             throws IOException, InterruptedException {
-        targetDir.mkdirs();
-        var outputJar = new File(targetDir, name + ".jar").getAbsoluteFile();
+        var jarBuilder = new JarCommandBuilder(iniFile.getAbsolutePath());
+        var outputJar = jarBuilder.releaseOutputJar();
+        System.out.println("Packaging " + outputJar.getName() + "...");
+        packageJar(iniFile, runner, outputJar);
+    }
+
+    private void packageJar(File iniFile, CommandsRunner runner, File outputJar)
+            throws IOException, InterruptedException {
+        outputJar.getParentFile().mkdirs();
         var jarBuilder = new JarCommandBuilder(iniFile.getAbsolutePath());
         var jarPlan = jarBuilder.planFor(outputJar);
-        System.out.println("Publishing " + outputJar.getName() + " to " + DependencyPaths.DIRECTORY + "/");
+        System.out.println("  jar: " + jarPlan.command());
         var exitCode = runner.run(List.of(jarPlan.command()));
         if (exitCode != 0) {
             throw new BuildFailedException(exitCode);
         }
         if (!outputJar.canRead()) {
-            throw new IllegalStateException("Failed to publish " + outputJar.getPath());
+            throw new IllegalStateException("Failed to create " + outputJar.getPath());
         }
+        System.out.println("Created " + outputJar.getPath());
+    }
+
+    private void publishJar(File iniFile, CommandsRunner runner, File targetDir, String name)
+            throws IOException, InterruptedException {
+        System.out.println("Publishing " + name + ".jar to " + DependencyPaths.DIRECTORY + "/");
+        packageJar(iniFile, runner, new File(targetDir, name + ".jar").getAbsoluteFile());
     }
 
     private List<Subproject> readSubprojects(Map<String, Map<String, String>> iniData) {

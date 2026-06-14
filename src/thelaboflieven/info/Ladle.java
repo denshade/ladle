@@ -30,6 +30,7 @@ public class Ladle {
         String command = args[0];
         switch (command) {
             case "build" -> runBuild(args);
+            case "release" -> runRelease(args);
             case "dependency" -> runDependency(args);
             case "test" -> runTest(args);
             case "clear" -> runClear(args);
@@ -45,6 +46,19 @@ public class Ladle {
         var buildIni = resolveIniFile("build", args);
         try {
             new BuildOrchestrator().build(buildIni);
+        } catch (BuildFailedException e) {
+            System.err.println(e.getMessage() + ".");
+            System.exit(e.exitCode());
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
+            System.exit(2);
+        }
+    }
+
+    private static void runRelease(String[] args) throws IOException, InterruptedException {
+        var buildIni = resolveIniFile("release", args);
+        try {
+            new BuildOrchestrator().release(buildIni);
         } catch (BuildFailedException e) {
             System.err.println(e.getMessage() + ".");
             System.exit(e.exitCode());
@@ -153,6 +167,7 @@ public class Ladle {
         System.out.println("thelaboflieven.info.Ladle version 0.2");
         System.out.println("Usage:");
         System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
+        System.out.println("  ladle release [<ini-file>]     Compile and package a JAR (default: build.ini)");
         System.out.println("  ladle dependency [<ini-file>] Download JDK and dependencies (default: build.ini)");
         System.out.println("  ladle test [<ini-file>]        Run unit tests (default: build.ini)");
         System.out.println("  ladle clear [<ini-file>]       Delete the build directory (default: build.ini)");

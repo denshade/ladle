@@ -32,6 +32,7 @@ public class JavacCommandBuilder {
         JdkInstaller.ensureInstalled(projectDir, iniData);
 
         String parameters = javacSection.getOrDefault("parameters", "");
+        var versionFlags = BuildConfig.javacVersionFlags(javacSection);
         String sources = sourcesSection.getOrDefault("paths", "");
         if (sources.isBlank()) {
             throw new IllegalStateException("Missing paths in [sources] section of INI file.");
@@ -47,6 +48,7 @@ public class JavacCommandBuilder {
             command.add("-cp");
             command.add(classpath);
         }
+        command.addAll(versionFlags);
         if (!parameters.isBlank()) {
             command.add(parameters);
         }
@@ -70,7 +72,7 @@ public class JavacCommandBuilder {
                 String.join(" ", command),
                 sourceFileCount,
                 javacExecutable.getPath(),
-                parameters,
+                BuildConfig.javacParameterSummary(javacSection),
                 classpath
         );
     }
