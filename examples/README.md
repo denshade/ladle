@@ -1,11 +1,15 @@
 # Example projects
 
-Sample Ladle projects for manual testing. Each example uses the repo-root `.jdk` directory (downloaded by `ladle dependency` from the main `build.ini`, or set `path = $JAVA_HOME` there).
+Sample Ladle projects for manual testing. Each example uses the repo-root `.jdk` directory (downloaded by `./bin/ladle dependency` from the main `build.ini`, or set `path = $JAVA_HOME` there).
 
-Build ladle first:
+Build ladle first if `lib/ladle.jar` is missing:
 
 ```powershell
 .\build.ps1
+```
+
+```sh
+./build.sh
 ```
 
 ## Subprojects
@@ -13,7 +17,11 @@ Build ladle first:
 A library subproject is built first; its JAR is published to `app/dependencies/lib.jar`, then the app compiles against it.
 
 ```powershell
-java -jar lib\ladle.jar build examples\subprojects\app\build.ini
+.\bin\ladle.ps1 build examples\subprojects\app\build.ini
+```
+
+```sh
+./bin/ladle build examples/subprojects/app/build.ini
 ```
 
 Expected: exit code 0, `examples/subprojects/app/dependencies/lib.jar` exists.
@@ -23,7 +31,11 @@ Expected: exit code 0, `examples/subprojects/app/dependencies/lib.jar` exists.
 Contains a Java compile error on purpose.
 
 ```powershell
-java -jar lib\ladle.jar build examples\failing-build\build.ini
+.\bin\ladle.ps1 build examples\failing-build\build.ini
+```
+
+```sh
+./bin/ladle build examples/failing-build/build.ini
 ```
 
 Expected: non-zero exit code and javac error output.

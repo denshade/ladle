@@ -20,11 +20,42 @@ thelaboflieven.info.Ladle supports:
 thelaboflieven.info.Ladle will optimize for transparency and speed.
 It will document clearly each and every used parameter.
 
-## Installation
+## Using Ladle
 
-Install Ladle once, then run `ladle` from any directory (similar to a global Gradle install).
+Each project ships with `lib/ladle.jar` and launcher scripts under `bin/`. No global install is required.
 
-### Build from source
+```
+your-project/
+  bin/ladle          # Unix launcher
+  bin/ladle.cmd      # Windows launcher
+  lib/ladle.jar      # committed in git
+  build.ini
+```
+
+Run from the project root:
+
+```sh
+./bin/ladle build build.ini
+./bin/ladle dependency build.ini
+./bin/ladle test build.ini
+./bin/ladle --help
+```
+
+Windows:
+
+```powershell
+.\bin\ladle.ps1 build build.ini
+```
+
+Or invoke the JAR directly (requires `java` on PATH):
+
+```sh
+java -jar lib/ladle.jar build build.ini
+```
+
+### Developing Ladle itself
+
+Rebuild `lib/ladle.jar` after changing Java sources:
 
 ```powershell
 .\build.ps1
@@ -34,75 +65,29 @@ Install Ladle once, then run `ladle` from any directory (similar to a global Gra
 ./build.sh
 ```
 
-This creates `lib/ladle.jar`.
+Commit the updated `lib/ladle.jar` so other projects and CI pick up the new version.
 
-### Install
+### Adding Ladle to another project
 
-**Windows** (installs to `%LOCALAPPDATA%\Programs\ladle` and adds it to your user PATH):
+Copy into your repository:
 
-```powershell
-.\install.ps1
-```
-
-**Linux / macOS** (installs to `~/.local/ladle` and updates your shell profile):
-
-```sh
-./install.sh
-```
-
-System-wide install on Unix:
-
-```sh
-./install.sh --system
-```
-
-Custom location:
-
-```sh
-./install.sh --prefix /opt
-```
-
-After installation, open a new terminal. The launcher reads `LADLE_HOME` if set; otherwise it resolves `lib/ladle.jar` relative to the install layout:
-
-```
-ladle/
-  bin/ladle          # Unix launcher
-  bin/ladle.cmd      # Windows launcher
-  lib/ladle.jar
-```
-
-### Usage
-
-```sh
-ladle build build.ini
-ladle dependency build.ini
-ladle test build.ini
-ladle --help
-```
-
-You can also run from a checkout without installing:
-
-```powershell
-.\bin\ladle.ps1 build build.ini
-```
-
-```sh
-./bin/ladle build build.ini
-```
+- `lib/ladle.jar`
+- `bin/ladle`, `bin/ladle.cmd` (and optionally `bin/ladle.ps1`)
 
 ## Quick start
 
 Run Ladle with a path to your build INI file:
 
 ```sh
-ladle build build.ini
-ladle dependency build.ini
+./bin/ladle build build.ini
+./bin/ladle dependency build.ini
 ```
 
-Or without installing:
+Or:
 
 ```sh
 java -jar lib/ladle.jar build build.ini
+java -jar lib/ladle.jar dependency build.ini
 ```
 
 Commands run with the INI file's directory as the working directory, so use paths relative to that file unless you specify absolute paths.
@@ -194,19 +179,11 @@ Build order:
 
 ### Dependencies (`dependency` command)
 
-The `dependency` command downloads JARs listed in the INI into the project-local `dependencies/` directory (similar to Gradle's dependency cache, but stored in the project).
-
-You can also use the download scripts from a project directory:
-
-```powershell
-.\download.ps1
-```
+The `dependency` command downloads a missing project JDK (when configured) and JARs listed in the INI into `dependencies/`:
 
 ```sh
-./download.sh
+./bin/ladle dependency build.ini
 ```
-
-Copy `download.ps1` / `download.sh` from `bin/` into your project, or run them from an installed Ladle (`download` on PATH after `install.ps1` / `install.sh`).
 
 #### `[dependencies]`
 
@@ -279,7 +256,8 @@ If no `*Test.java` files are found, Ladle prints a warning and exits successfull
 
 ```ini
 [javac]
-path = C:\Java\jdk-21
+path = .jdk
+download.linux = https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse
 parameters = -encoding UTF-8 -d build/classes
 
 [sources]
@@ -296,9 +274,9 @@ classpath = build/classes
 
 Workflow:
 
-1. `ladle dependency build.ini` — fetch JARs.
-2. `ladle build build.ini` — compile sources.
-3. `ladle test build.ini` — compile and run unit tests.
+1. `./bin/ladle dependency build.ini` — fetch JDK and JARs.
+2. `./bin/ladle build build.ini` — compile sources.
+3. `./bin/ladle test build.ini` — compile and run unit tests.
 
 ## Command reference
 

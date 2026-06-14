@@ -1,16 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 
-if [ -n "${LADLE_HOME:-}" ]; then
-  APP_HOME="$LADLE_HOME"
-else
-  APP_HOME="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-fi
-
-JAR="$APP_HOME/lib/ladle.jar"
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+JAR="$ROOT/lib/ladle.jar"
 if [ ! -f "$JAR" ]; then
   echo "Cannot find ladle.jar at $JAR" >&2
-  echo "Set LADLE_HOME or run install.sh to install Ladle." >&2
+  echo "Run ./build.sh to build it, or commit lib/ladle.jar in your project." >&2
   exit 1
 fi
 

@@ -1,14 +1,9 @@
 $ErrorActionPreference = "Stop"
 
-if ($env:LADLE_HOME) {
-    $AppHome = $env:LADLE_HOME
-} else {
-    $AppHome = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-}
-
-$JarPath = Join-Path $AppHome "lib\ladle.jar"
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$JarPath = Join-Path $Root "lib\ladle.jar"
 if (-not (Test-Path -LiteralPath $JarPath)) {
-    Write-Error "Cannot find ladle.jar at $JarPath. Set LADLE_HOME or run install.ps1 to install Ladle."
+    Write-Error "Cannot find ladle.jar at $JarPath. Run build.ps1 to build it, or commit lib/ladle.jar in your project."
     exit 1
 }
 
