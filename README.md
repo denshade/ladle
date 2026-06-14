@@ -128,7 +128,7 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 |-----|----------|---------|-------------|
 | `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
 
-During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`) and from `[dependencies].implementation` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so implementation JARs exist on disk.
+During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`) and from `[dependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs exist on disk.
 
 Example `build.ini`:
 
@@ -191,20 +191,19 @@ Copy `download.ps1` / `download.sh` from `bin/` into your project, or run them f
 
 #### `[dependencies]`
 
-| Key | Required | Default | Description |
-|-----|----------|---------|-------------|
-| `implementation` | no | — | Comma-separated list of URLs for compile/runtime dependencies. Each URL is saved to `dependencies/` using the last segment of its path as the filename. Ladle adds these JARs to the `javac` classpath during `ladle build`. |
+Compile/runtime dependencies use `name = url` pairs. The name may be a local JAR filename or a Java package (for example `net.bytebuddy`); package names are saved using the filename from the URL. Files are written under `dependencies/`. Ladle adds each dependency to the `javac` classpath during `ladle build`.
 
 Example:
 
 ```ini
 [dependencies]
-implementation = https://repo1.maven.org/maven2/some/lib/1.0/lib-1.0.jar
+net.bytebuddy = https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/1.17.7/byte-buddy-1.17.7.jar
+objenesis.jar = https://repo1.maven.org/maven2/org/objenesis/objenesis/3.3/objenesis-3.3.jar
 ```
 
 #### `[testdependencies]`
 
-Test dependencies use `name = url` pairs. The name may be a local JAR filename or a Java package (for example `org.junit.jupiter.api`); package names are saved using the filename from the URL. Files are written under `dependencies/`. Ladle adds each dependency to the test classpath automatically.
+Test dependencies use the same `name = url` format. Files are written under `dependencies/`. Ladle adds each dependency to the test classpath automatically.
 
 Example:
 

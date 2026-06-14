@@ -22,16 +22,8 @@ public class DependencyInstaller {
 
     public List<DependencyArtifact> artifacts() {
         var artifacts = new ArrayList<DependencyArtifact>();
-
-        Map<String, String> dependencies = iniData.get("dependencies");
-        if (dependencies != null) {
-            addFromList(artifacts, dependencies.get("implementation"));
-        }
-
-        Map<String, String> testDependencies = iniData.get("testdependencies");
-        if (testDependencies != null) {
-            addFromPairs(artifacts, testDependencies);
-        }
+        addFromPairs(artifacts, iniData.get("dependencies"));
+        addFromPairs(artifacts, iniData.get("testdependencies"));
         return artifacts;
     }
 
@@ -54,21 +46,11 @@ public class DependencyInstaller {
         return artifacts.size();
     }
 
-    private void addFromList(List<DependencyArtifact> artifacts, String dependencyList) {
-        if (dependencyList == null || dependencyList.isBlank()) {
+    private void addFromPairs(List<DependencyArtifact> artifacts, Map<String, String> pairs) {
+        if (pairs == null) {
             return;
         }
 
-        for (var url : dependencyList.split(",")) {
-            url = url.trim();
-            if (url.isBlank()) {
-                continue;
-            }
-            artifacts.add(new DependencyArtifact(url, ImplementationDependencies.fileName(url)));
-        }
-    }
-
-    private void addFromPairs(List<DependencyArtifact> artifacts, Map<String, String> pairs) {
         for (var entry : pairs.entrySet()) {
             var name = entry.getKey().trim();
             var url = entry.getValue().trim();
