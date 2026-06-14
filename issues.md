@@ -36,15 +36,11 @@ Ladle now has three dependency sections:
 
 ## 3. Non-Java resource processing
 
-**Status:** open
+**Status:** fixed
 
-Ladle compiles `.java` files only. It does not copy resources from source trees or generated output directories into the classes directory before packaging.
+Ladle copies non-Java files from `[resources]` into the classes directory after `javac` and before JAR packaging. Use `paths` for resource roots and additional `source = destination` entries for explicit copy rules.
 
-**Affected code:** [JavacCommandBuilder.java](src/thelaboflieven/info/build/JavacCommandBuilder.java), [BuildOrchestrator.java](src/thelaboflieven/info/build/BuildOrchestrator.java)
-
-**Impact:** Mockito core generates an inline-mock resource (`inject-MockMethodDispatcher.raw`) from a compiled class. Any project with `src/main/resources` or generated assets needs external scripts today.
-
-**Fix direction:** Add a `[resources]` INI section (source dirs and/or copy rules) that runs before JAR packaging.
+**Affected code:** [ResourceCopier.java](src/thelaboflieven/info/build/ResourceCopier.java), [BuildOrchestrator.java](src/thelaboflieven/info/build/BuildOrchestrator.java)
 
 ---
 

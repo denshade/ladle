@@ -116,6 +116,23 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 |-----|----------|---------|-------------|
 | `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
 
+#### `[resources]`
+
+Optional. After compilation, Ladle copies non-Java files into the classes directory (from `[javac].parameters` `-d`, default `build/classes`) before JAR packaging.
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `paths` | no | — | Comma-separated resource roots. Every non-`.java` file under each root is copied into the classes directory, preserving its path relative to that root. Missing roots are skipped. |
+| *other keys* | no | — | Explicit copy rules: `source = destination`, where `source` is relative to the project directory and `destination` is relative to the classes directory. Use for generated files or one-off assets (for example `build/generated/inject-MockMethodDispatcher.raw = inject-MockMethodDispatcher.raw`). |
+
+Example:
+
+```ini
+[resources]
+paths = src/main/resources, build/generated-resources
+build/generated/inject-MockMethodDispatcher.raw = inject-MockMethodDispatcher.raw
+```
+
 During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs and a missing project JDK exist on disk.
 
 Example `build.ini` with a downloaded project JDK:

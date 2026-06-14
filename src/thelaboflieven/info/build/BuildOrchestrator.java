@@ -48,6 +48,11 @@ public class BuildOrchestrator {
                 throw new BuildFailedException(exitCode);
             }
 
+            var resourcePlan = new ResourceCopier(iniFile.getAbsolutePath()).copyResources();
+            if (resourcePlan.fileCount() > 0) {
+                printResourceCopyPlan(resourcePlan);
+            }
+
             if (publishJarTo != null && publishJarName != null) {
                 publishJar(iniFile, runner, publishJarTo, publishJarName);
             }
@@ -120,5 +125,9 @@ public class BuildOrchestrator {
             System.out.println("  classpath: " + plan.classpath());
         }
         System.out.println("Running javac...");
+    }
+
+    private void printResourceCopyPlan(ResourceCopyPlan plan) {
+        System.out.println("Copying " + plan.fileCount() + " resource file(s) into classes directory...");
     }
 }
