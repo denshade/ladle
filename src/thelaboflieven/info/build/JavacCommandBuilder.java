@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
 
+import thelaboflieven.info.download.JdkInstaller;
 import thelaboflieven.info.inifile.IniFileReader;
 
 import java.io.*;
@@ -27,6 +28,8 @@ public class JavacCommandBuilder {
         if (javacSection == null || sourcesSection == null) {
             throw new IllegalStateException("Missing [javac] or [sources] section in INI file.");
         }
+
+        JdkInstaller.ensureInstalled(projectDir, iniData);
 
         String parameters = javacSection.getOrDefault("parameters", "");
         String sources = sourcesSection.getOrDefault("paths", "");

@@ -1,6 +1,7 @@
 /build/
 /lib/ladle.jar
 .jdk/
+.jdk-staging/
 /dependencies/
 examples/**/build/
 examples/**/dependencies/

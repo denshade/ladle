@@ -64,15 +64,11 @@ Ladle compiles `.java` files only. It does not copy resources from source trees 
 
 ## 5. Cross-platform JDK tool resolution
 
-**Status:** open
+**Status:** fixed
 
-Tool paths are hardcoded as `javac.exe`, `java.exe`, and `jar.exe`.
+Ladle resolves `javac`, `java`, and `jar` under `{jdk}/bin/` using the `.exe` suffix on Windows and plain names elsewhere.
 
 **Affected code:** [BuildConfig.java](src/thelaboflieven/info/build/BuildConfig.java), [TestCommandBuilder.java](src/thelaboflieven/info/test/TestCommandBuilder.java)
-
-**Impact:** Ladle does not run on Linux or macOS without code changes. Mockito CI is Linux-based.
-
-**Fix direction:** Resolve tool names by OS (`javac` vs `javac.exe`) or use `JavaHome/bin/` + standard executable names.
 
 ---
 
@@ -164,7 +160,7 @@ Every `ladle build` walks all source roots and invokes `javac` on every `.java` 
 
 Prioritize issues that unblock Mockito core compilation and packaging without scripts:
 
-1. **#5** Cross-platform tools — required for CI
+1. ~~**#5** Cross-platform tools~~ — done
 2. **#6** Command tokenization — required for any real classpath
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
 4. **#9** JPMS — required for mockito-core module-info

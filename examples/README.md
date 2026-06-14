@@ -1,6 +1,6 @@
 # Example projects
 
-Sample Ladle projects for manual testing. Each example uses the repo-root `.jdk` junction (see the main `build.ini` for setup).
+Sample Ladle projects for manual testing. Each example uses the repo-root `.jdk` directory (downloaded by `ladle dependency` from the main `build.ini`, or set `path = $JAVA_HOME` there).
 
 Build ladle first:
 

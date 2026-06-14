@@ -119,7 +119,10 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `path` | no | `javac` | Root directory of the JDK installation. Ladle runs `{path}\bin\javac.exe` (Windows). The path must not contain spaces (see note below). |
+| `path` | yes | — | JDK root directory. Use `$JAVA_HOME` for an installed JDK, or a project-local path such as `.jdk` (downloaded by `ladle dependency` when `download.*` URLs are configured). Supports `$VAR` and `${VAR}` environment expansion. |
+| `download.windows` | no | — | Windows JDK archive URL. Used when `path` points at a missing local JDK. |
+| `download.linux` | no | — | Linux JDK archive URL. |
+| `download.macos` | no | — | macOS JDK archive URL. |
 | `parameters` | no | *(empty)* | Extra arguments passed to `javac`, separated by spaces (for example `-encoding UTF-8 -d build`). |
 
 #### `[sources]`
@@ -128,26 +131,42 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 |-----|----------|---------|-------------|
 | `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
 
-During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs exist on disk.
+During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs and a missing project JDK exist on disk.
 
-Example `build.ini`:
+Example `build.ini` with a downloaded project JDK:
 
 ```ini
 [javac]
-path = C:\Java\jdk-21
-parameters = -encoding UTF-8 -d build
+path = .jdk
+download.windows = https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse
+download.linux = https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse
+download.macos = https://api.adoptium.net/v3/binary/latest/21/ga/mac/x64/jdk/hotspot/normal/eclipse
+parameters = -encoding UTF-8 -d build/classes
 
 [sources]
-paths = src,test
+paths = src
+```
+
+Or use an installed JDK explicitly:
+
+```ini
+[javac]
+path = $JAVA_HOME
+parameters = -encoding UTF-8 -d build/classes
+
+[sources]
+paths = src
 ```
 
 This runs (conceptually):
 
 ```
-C:\Java\jdk-21\bin\javac.exe -encoding UTF-8 -d build <every .java file under src/ and test/>
+{path}/bin/javac -encoding UTF-8 -d build <every .java file under src/ and test/>
 ```
 
-**Path limitation:** Ladle splits the final command on spaces before execution. Values in `path`, `parameters`, and comma-separated entries in `paths` must not contain spaces. Use a JDK install path without spaces, or a directory junction/symlink to one.
+On Windows, tool names use the `.exe` suffix (`javac.exe`, `java.exe`, `jar.exe`).
+
+**Path limitation:** Ladle splits the final command on spaces before execution. Values in `path`, `parameters`, and comma-separated entries in `paths` must not contain spaces. Use `path = $JAVA_HOME` only when `JAVA_HOME` has no spaces, or use a project-local `.jdk` download.
 
 #### `[build]`
 
@@ -225,7 +244,7 @@ org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-j
 junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
 ```
 
-If `[dependencies]`, `[compileonlydependencies]`, and `[testdependencies]` are all empty, `ladle dependency` prints a warning and exits successfully.
+If `[dependencies]`, `[compileonlydependencies]`, and `[testdependencies]` are all empty and `[javac]` has no JDK to install, `ladle dependency` prints a warning and exits successfully.
 
 ### Tests (`test` command)
 
@@ -288,7 +307,7 @@ Workflow:
 | *(none)* | — | Print welcome message. |
 | `--help` | — | Print brief usage (exits with status 1). |
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
-| `dependency` | `<ini-file>` | Download dependencies described in the INI file. |
+| `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file. |
 | `test` | `<ini-file>` | Compile and run unit tests described in the INI file. |
 | `clear` | `<ini-file>` | Delete the build directory described in the INI file. |
 

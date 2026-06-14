@@ -1,6 +1,7 @@
 package thelaboflieven.info.test;
 
 import thelaboflieven.info.build.BuildConfig;
+import thelaboflieven.info.download.JdkInstaller;
 import thelaboflieven.info.inifile.IniFileReader;
 import thelaboflieven.info.download.TestDependencies;
 
@@ -40,6 +41,8 @@ public class TestCommandBuilder {
         if (sources.isBlank()) {
             throw new IllegalStateException("Missing sources in [test] section of INI file.");
         }
+
+        JdkInstaller.ensureInstalled(projectDir, iniData);
 
         var runtimeClasspathEntries = resolveRuntimeClasspathEntries(classpath);
         if (runtimeClasspathEntries.isEmpty()) {
@@ -107,22 +110,18 @@ public class TestCommandBuilder {
 
     private File resolveJavacExecutable(Map<String, String> testSection) {
         if (!testSection.getOrDefault("path", "").isBlank()) {
-            var executable = new File(new File(projectDir, testSection.get("path").trim()), "bin/javac.exe");
-            if (!executable.canRead()) {
-                throw new IllegalStateException("Cannot read " + executable.getPath());
-            }
-            return executable;
+            return BuildConfig.toolExecutable(
+                    BuildConfig.jdkRoot(projectDir, testSection.get("path")),
+                    "javac");
         }
         return BuildConfig.javacExecutable(projectDir, iniData);
     }
 
     private File resolveJavaExecutable(Map<String, String> testSection) {
         if (!testSection.getOrDefault("path", "").isBlank()) {
-            var executable = new File(new File(projectDir, testSection.get("path").trim()), "bin/java.exe");
-            if (!executable.canRead()) {
-                throw new IllegalStateException("Cannot read " + executable.getPath());
-            }
-            return executable;
+            return BuildConfig.toolExecutable(
+                    BuildConfig.jdkRoot(projectDir, testSection.get("path")),
+                    "java");
         }
         return BuildConfig.javaExecutable(projectDir, iniData);
     }

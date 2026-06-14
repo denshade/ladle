@@ -8,8 +8,8 @@ if [ $# -gt 0 ]; then
       cat <<EOF
 Usage: $(basename "$0") [<ini-file>]
 
-Download and install JAR dependencies into dependencies/ for the current project.
-Reads [dependencies] and [testdependencies] from build.ini (default: build.ini).
+Download and install a project JDK (when configured) and JAR dependencies into dependencies/.
+Reads [javac] download URLs and [dependencies], [compileonlydependencies], and [testdependencies] from build.ini (default: build.ini).
 
 Uses a local ladle checkout when present, otherwise LADLE_HOME or ladle on PATH.
 EOF

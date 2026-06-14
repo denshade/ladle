@@ -4,6 +4,8 @@ import thelaboflieven.info.build.BuildFailedException;
 import thelaboflieven.info.build.BuildOrchestrator;
 import thelaboflieven.info.build.BuildCleaner;
 import thelaboflieven.info.download.DependencyInstaller;
+import thelaboflieven.info.download.JdkInstaller;
+import thelaboflieven.info.inifile.IniFileReader;
 import thelaboflieven.info.test.TestCommandBuilder;
 import thelaboflieven.info.test.TestPlan;
 
@@ -54,15 +56,25 @@ public class Ladle {
 
     private static void runDependency(String[] args) throws IOException {
         var buildIni = resolveIniFile("dependency", args);
+        var iniData = new IniFileReader().parseIniFile(buildIni.getAbsolutePath());
+        var projectDir = buildIni.getParentFile();
+
         var installer = new DependencyInstaller(buildIni.getAbsolutePath());
         var artifacts = installer.artifacts();
-        if (artifacts.isEmpty()) {
+        if (artifacts.isEmpty() && !JdkInstaller.isConfigured(iniData)) {
             System.err.println("Warning: no dependencies configured in " + buildIni.getName() + ".");
             return;
         }
-        System.out.println("Downloading " + artifacts.size() + " dependency file(s) to dependencies/ from " + buildIni.getName() + ":");
-        installer.install(buildIni.getParentFile());
-        System.out.println("Dependencies installed.");
+
+        if (JdkInstaller.isConfigured(iniData)) {
+            JdkInstaller.ensureInstalled(projectDir, iniData);
+        }
+
+        if (!artifacts.isEmpty()) {
+            System.out.println("Downloading " + artifacts.size() + " dependency file(s) to dependencies/ from " + buildIni.getName() + ":");
+            installer.install(projectDir);
+            System.out.println("Dependencies installed.");
+        }
     }
 
     private static void runTest(String[] args) throws IOException, InterruptedException {
@@ -141,7 +153,7 @@ public class Ladle {
         System.out.println("thelaboflieven.info.Ladle version 0.2");
         System.out.println("Usage:");
         System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
-        System.out.println("  ladle dependency [<ini-file>] Download dependencies (default: build.ini)");
+        System.out.println("  ladle dependency [<ini-file>] Download JDK and dependencies (default: build.ini)");
         System.out.println("  ladle test [<ini-file>]        Run unit tests (default: build.ini)");
         System.out.println("  ladle clear [<ini-file>]       Delete the build directory (default: build.ini)");
         System.out.println("  ladle --help                   Show this help message");

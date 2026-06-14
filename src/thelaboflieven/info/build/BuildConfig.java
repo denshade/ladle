@@ -1,7 +1,10 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.inifile.IniEnvironment;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 
 public final class BuildConfig {
@@ -19,6 +22,27 @@ public final class BuildConfig {
     }
 
     public static String configuredJdkPath(Map<String, Map<String, String>> iniData) {
+        return IniEnvironment.expand(configuredRawJdkPath(iniData));
+    }
+
+    public static File jdkRoot(File projectDir, Map<String, Map<String, String>> iniData) {
+        return jdkRoot(projectDir, configuredRawJdkPath(iniData));
+    }
+
+    public static File jdkRoot(File projectDir, String rawPath) {
+        var expandedPath = IniEnvironment.expand(rawPath.trim());
+        var jdkRoot = new File(expandedPath);
+        if (!jdkRoot.isAbsolute()) {
+            jdkRoot = new File(projectDir, expandedPath);
+        }
+        try {
+            return jdkRoot.getCanonicalFile();
+        } catch (IOException e) {
+            return jdkRoot.getAbsoluteFile();
+        }
+    }
+
+    public static String configuredRawJdkPath(Map<String, Map<String, String>> iniData) {
         Map<String, String> javacSection = iniData.get("javac");
         if (javacSection == null || javacSection.getOrDefault("path", "").isBlank()) {
             throw new IllegalStateException("Missing JDK path in [javac].path.");
@@ -27,27 +51,34 @@ public final class BuildConfig {
     }
 
     public static File javacExecutable(File projectDir, Map<String, Map<String, String>> iniData) {
-        return toolExecutable(projectDir, iniData, "javac.exe");
+        return toolExecutable(jdkRoot(projectDir, iniData), "javac");
     }
 
     public static File javaExecutable(File projectDir, Map<String, Map<String, String>> iniData) {
-        return toolExecutable(projectDir, iniData, "java.exe");
+        return toolExecutable(jdkRoot(projectDir, iniData), "java");
     }
 
     public static File jarExecutable(File projectDir, Map<String, Map<String, String>> iniData) {
-        return toolExecutable(projectDir, iniData, "jar.exe");
+        return toolExecutable(jdkRoot(projectDir, iniData), "jar");
     }
 
-    private static File toolExecutable(File projectDir, Map<String, Map<String, String>> iniData, String toolName) {
+    public static File toolExecutable(File jdkRoot, String tool) {
         try {
-            var executable = new File(new File(projectDir, configuredJdkPath(iniData)), "bin" + File.separator + toolName);
+            var executable = new File(jdkRoot, "bin" + File.separator + toolFileName(tool));
             if (!executable.canRead()) {
                 throw new IllegalStateException("Cannot read " + executable.getPath());
             }
             return executable.getCanonicalFile();
         } catch (IOException e) {
-            throw new IllegalStateException("Cannot resolve JDK tool path: " + toolName, e);
+            throw new IllegalStateException("Cannot resolve JDK tool path: " + tool, e);
         }
+    }
+
+    public static String toolFileName(String tool) {
+        if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) {
+            return tool + ".exe";
+        }
+        return tool;
     }
 
     private static String findFlagValue(String parameters, String flag, String defaultValue) {
