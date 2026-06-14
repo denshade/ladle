@@ -31,6 +31,29 @@ public class CompileClasspathTest {
     }
 
     @Test
+    void includesCompileOnlyDependencies() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-classpath-compileonly").toFile();
+        var dependenciesDir = new File(projectDir, "dependencies");
+        dependenciesDir.mkdirs();
+        new File(dependenciesDir, "lib.jar").createNewFile();
+        new File(dependenciesDir, "jspecify-1.0.jar").createNewFile();
+
+        var iniData = Map.of(
+                "dependencies",
+                Map.of("lib.jar", "https://example.com/lib.jar"),
+                "compileonlydependencies",
+                Map.of("org.jspecify", "https://example.com/jspecify-1.0.jar")
+        );
+
+        var classpath = CompileClasspath.resolve(projectDir, iniData);
+
+        assertEquals(
+                "dependencies/lib.jar" + File.pathSeparator + "dependencies/jspecify-1.0.jar",
+                classpath
+        );
+    }
+
+    @Test
     void failsWhenDependencyJarMissing() throws Exception {
         var projectDir = Files.createTempDirectory("ladle-classpath-missing").toFile();
         var iniData = Map.of(

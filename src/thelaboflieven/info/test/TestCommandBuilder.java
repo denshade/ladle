@@ -41,15 +41,16 @@ public class TestCommandBuilder {
             throw new IllegalStateException("Missing sources in [test] section of INI file.");
         }
 
-        var classpathEntries = resolveClasspathEntries(classpath);
-        if (classpathEntries.isEmpty()) {
+        var runtimeClasspathEntries = resolveRuntimeClasspathEntries(classpath);
+        if (runtimeClasspathEntries.isEmpty()) {
             throw new IllegalStateException("Missing classpath in [test] section of INI file.");
         }
 
         var javacExecutable = resolveJavacExecutable(testSection);
         var javaExecutable = resolveJavaExecutable(testSection);
 
-        var runtimeClasspath = joinClasspath(classpathEntries, output);
+        var compileClasspathEntries = resolveCompileClasspathEntries(runtimeClasspathEntries);
+        var runtimeClasspath = joinClasspath(runtimeClasspathEntries, output);
         var testClassNames = new ArrayList<String>();
         var testSourceFiles = new ArrayList<Path>();
 
@@ -74,7 +75,7 @@ public class TestCommandBuilder {
         }
 
         var commands = new ArrayList<String>();
-        var compileClasspath = joinClasspath(classpathEntries);
+        var compileClasspath = joinClasspath(compileClasspathEntries);
         var compileCommand = new ArrayList<String>();
         compileCommand.add(javacExecutable.getPath());
         compileCommand.add("-encoding");
@@ -142,20 +143,27 @@ public class TestCommandBuilder {
         return DEFAULT_RUNNER;
     }
 
-    private List<String> resolveClasspathEntries(String classpath) {
-        var entries = splitEntries(classpath);
-        Map<String, String> testDependencies = iniData.get("testdependencies");
-        if (testDependencies != null) {
-            for (var entry : testDependencies.entrySet()) {
-                var name = entry.getKey().trim();
-                var url = entry.getValue().trim();
-                if (name.isBlank() || url.isBlank()) {
-                    continue;
-                }
-                var path = TestDependencies.localPath(name, url);
-                if (!entries.contains(path)) {
-                    entries.add(path);
-                }
+    private List<String> resolveRuntimeClasspathEntries(String classpath) {
+        return addDependencySection(splitEntries(classpath), iniData.get("testdependencies"));
+    }
+
+    private List<String> resolveCompileClasspathEntries(List<String> runtimeEntries) {
+        return addDependencySection(new ArrayList<>(runtimeEntries), iniData.get("compileonlydependencies"));
+    }
+
+    private List<String> addDependencySection(List<String> entries, Map<String, String> dependencies) {
+        if (dependencies == null) {
+            return entries;
+        }
+        for (var entry : dependencies.entrySet()) {
+            var name = entry.getKey().trim();
+            var url = entry.getValue().trim();
+            if (name.isBlank() || url.isBlank()) {
+                continue;
+            }
+            var path = TestDependencies.localPath(name, url);
+            if (!entries.contains(path)) {
+                entries.add(path);
             }
         }
         return entries;

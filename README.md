@@ -128,7 +128,7 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 |-----|----------|---------|-------------|
 | `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
 
-During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`) and from `[dependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs exist on disk.
+During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs exist on disk.
 
 Example `build.ini`:
 
@@ -191,7 +191,7 @@ Copy `download.ps1` / `download.sh` from `bin/` into your project, or run them f
 
 #### `[dependencies]`
 
-Compile/runtime dependencies use `name = url` pairs. The name may be a local JAR filename or a Java package (for example `net.bytebuddy`); package names are saved using the filename from the URL. Files are written under `dependencies/`. Ladle adds each dependency to the `javac` classpath during `ladle build`.
+Implementation dependencies (Gradle `implementation`) use `name = url` pairs. The name may be a local JAR filename or a Java package (for example `net.bytebuddy`); package names are saved using the filename from the URL. Files are written under `dependencies/`. Ladle adds each dependency to the `javac` classpath during `ladle build`.
 
 Example:
 
@@ -201,9 +201,21 @@ net.bytebuddy = https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/1.17.7/b
 objenesis.jar = https://repo1.maven.org/maven2/org/objenesis/objenesis/3.3/objenesis-3.3.jar
 ```
 
+#### `[compileonlydependencies]`
+
+Compile-only dependencies (Gradle `compileOnly`) use the same `name = url` format. Files are written under `dependencies/`. Ladle adds each dependency to the main `javac` classpath and to the test compile classpath, but not to the test runtime classpath. Use this for APIs needed at compile time only (for example JUnit 4, Hamcrest, or JSpecify annotations on a library that does not bundle them).
+
+Example:
+
+```ini
+[compileonlydependencies]
+org.jspecify = https://repo1.maven.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar
+org.junit = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+```
+
 #### `[testdependencies]`
 
-Test dependencies use the same `name = url` format. Files are written under `dependencies/`. Ladle adds each dependency to the test classpath automatically.
+Test dependencies (Gradle `testImplementation`) use the same `name = url` format. Files are written under `dependencies/`. Ladle adds each dependency to the test compile and runtime classpaths automatically.
 
 Example:
 
@@ -213,7 +225,7 @@ org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-j
 junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
 ```
 
-If neither `[dependencies]` nor `[testdependencies]` lists anything to download, `ladle dependency` prints a warning and exits successfully.
+If `[dependencies]`, `[compileonlydependencies]`, and `[testdependencies]` are all empty, `ladle dependency` prints a warning and exits successfully.
 
 ### Tests (`test` command)
 
@@ -224,7 +236,7 @@ The `test` command compiles test sources and runs them with JUnit 5. It requires
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
 | `sources` | yes | — | Comma-separated test source roots. Ladle finds classes named `*Test.java`. |
-| `classpath` | no | `build/classes` | Comma-separated extra classpath entries. Entries from `[testdependencies]` are added automatically. |
+| `classpath` | no | `build/classes` | Comma-separated extra classpath entries. Entries from `[testdependencies]` are added to the test compile and runtime classpaths; entries from `[compileonlydependencies]` are added to the test compile classpath only. |
 | `output` | no | `build/test-classes` | Directory for compiled test classes. |
 | `runner` | no | `org.junit.platform.console.ConsoleLauncher` | Main class used to run tests. Ladle invokes `execute --details-theme=ascii --select-class` for each `*Test` class found. |
 | `path` | no | `[javac].path` | JDK root when different from the build JDK. |

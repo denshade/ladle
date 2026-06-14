@@ -1,5 +1,6 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.download.CompileOnlyDependencies;
 import thelaboflieven.info.download.DependencyPaths;
 import thelaboflieven.info.download.ImplementationDependencies;
 
@@ -16,6 +17,7 @@ public final class CompileClasspath {
         var entries = new ArrayList<String>();
         entries.addAll(subprojectEntries(projectDir, iniData));
         entries.addAll(implementationEntries(projectDir, iniData));
+        entries.addAll(compileOnlyEntries(projectDir, iniData));
         return String.join(String.valueOf(File.pathSeparatorChar), entries);
     }
 
@@ -42,8 +44,16 @@ public final class CompileClasspath {
     }
 
     private static List<String> implementationEntries(File projectDir, Map<String, Map<String, String>> iniData) {
+        return dependencyEntries(projectDir, ImplementationDependencies.localPaths(iniData));
+    }
+
+    private static List<String> compileOnlyEntries(File projectDir, Map<String, Map<String, String>> iniData) {
+        return dependencyEntries(projectDir, CompileOnlyDependencies.localPaths(iniData));
+    }
+
+    private static List<String> dependencyEntries(File projectDir, List<String> relativePaths) {
         var entries = new ArrayList<String>();
-        for (var relativePath : ImplementationDependencies.localPaths(iniData)) {
+        for (var relativePath : relativePaths) {
             var jarFile = new File(projectDir, relativePath);
             if (!jarFile.canRead()) {
                 throw new IllegalStateException("Missing dependency jar: " + jarFile.getPath());

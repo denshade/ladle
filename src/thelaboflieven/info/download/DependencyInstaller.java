@@ -23,6 +23,7 @@ public class DependencyInstaller {
     public List<DependencyArtifact> artifacts() {
         var artifacts = new ArrayList<DependencyArtifact>();
         addFromPairs(artifacts, iniData.get("dependencies"));
+        addFromPairs(artifacts, iniData.get("compileonlydependencies"));
         addFromPairs(artifacts, iniData.get("testdependencies"));
         return artifacts;
     }
