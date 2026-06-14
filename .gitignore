@@ -4,3 +4,4 @@
 /dependencies/
 examples/**/build/
 examples/**/dependencies/
+out
