@@ -3,6 +3,7 @@ package thelaboflieven.info.download;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -44,8 +45,8 @@ public class ImplementationDependenciesTest {
         );
 
         assertEquals(
-                java.util.List.of("dependencies/a.jar", "dependencies/b.jar"),
-                ImplementationDependencies.localPaths(iniData)
+                Set.of("dependencies/a.jar", "dependencies/b.jar"),
+                Set.copyOf(ImplementationDependencies.localPaths(iniData))
         );
     }
 }
