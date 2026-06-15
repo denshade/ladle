@@ -68,15 +68,11 @@ Ladle resolves `javac`, `java`, and `jar` under `{jdk}/bin/` using the `.exe` su
 
 ## 6. Command tokenization splits on spaces
 
-**Status:** open
+**Status:** fixed
 
-The full command string is split on spaces before `ProcessBuilder` runs it.
+Ladle passes argv as `List<String>` end-to-end to `ProcessBuilder`. Long `javac` invocations are written to `{build}/javac.args` (or `{build}/test-javac.args` for tests) and invoked with `@file` when the command line would exceed the platform limit.
 
-**Affected code:** [CommandsRunner.java](src/thelaboflieven/info/CommandsRunner.java)
-
-**Impact:** JDK paths with spaces, long classpaths, and `@argfile` references break. Mockito's dependency classpath will exceed practical limits quickly.
-
-**Fix direction:** Pass argv as a `List<String>` end-to-end instead of joining and re-splitting; support `@file` argfiles for large source/classpath lists.
+**Affected code:** [CommandLine.java](src/thelaboflieven/info/CommandLine.java), [CommandsRunner.java](src/thelaboflieven/info/CommandsRunner.java), [JavacCommandBuilder.java](src/thelaboflieven/info/build/JavacCommandBuilder.java), [TestCommandBuilder.java](src/thelaboflieven/info/test/TestCommandBuilder.java)
 
 ---
 
@@ -155,7 +151,7 @@ Every `ladle build` walks all source roots and invokes `javac` on every `.java` 
 Prioritize issues that unblock Mockito core compilation and packaging without scripts:
 
 1. ~~**#5** Cross-platform tools~~ — done
-2. **#6** Command tokenization — required for any real classpath
+2. ~~**#6** Command tokenization~~ — done
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
 4. **#9** JPMS — required for mockito-core module-info
 5. **#3 + #4** Resources + JAR — required for a correct artifact

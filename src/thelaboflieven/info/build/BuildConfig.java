@@ -23,6 +23,14 @@ public final class BuildConfig {
         return findFlagValue(javacSection.getOrDefault("parameters", ""), "-d", DEFAULT_CLASSES_DIR);
     }
 
+    public static String buildDirectory(Map<String, Map<String, String>> iniData) {
+        Map<String, String> buildSection = iniData.get("build");
+        if (buildSection != null && !buildSection.getOrDefault("directory", "").isBlank()) {
+            return buildSection.get("directory").trim();
+        }
+        return "build";
+    }
+
     public static String configuredJdkPath(Map<String, Map<String, String>> iniData) {
         return IniEnvironment.expand(configuredRawJdkPath(iniData));
     }

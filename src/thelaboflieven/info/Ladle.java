@@ -3,6 +3,7 @@ package thelaboflieven.info;
 import thelaboflieven.info.build.BuildFailedException;
 import thelaboflieven.info.build.BuildOrchestrator;
 import thelaboflieven.info.build.BuildCleaner;
+import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.download.DependencyInstaller;
 import thelaboflieven.info.download.JdkInstaller;
 import thelaboflieven.info.inifile.IniFileReader;
@@ -132,7 +133,7 @@ public class Ladle {
         System.out.println("  classpath: " + plan.classpath());
         System.out.println("  runner: " + plan.runner());
         for (int i = 0; i < plan.commands().size(); i++) {
-            System.out.println("  command " + (i + 1) + ": " + plan.commands().get(i));
+            System.out.println("  command " + (i + 1) + ": " + CommandLine.format(plan.commands().get(i)));
         }
     }
 

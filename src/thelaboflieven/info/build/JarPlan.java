@@ -1,4 +1,6 @@
 package thelaboflieven.info.build;
 
-public record JarPlan(String command, String outputJar, String classesDirectory) {
+import java.util.List;
+
+public record JarPlan(List<String> command, String outputJar, String classesDirectory) {
 }

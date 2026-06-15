@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -98,10 +99,14 @@ public class JarCommandBuilderTest {
         var plan = builder.planFor(new File(projectDir, "build/example.jar"));
 
         assertEquals(
-                new File(projectDir, ".jdk/bin/" + BuildConfig.toolFileName("jar")).getPath()
-                        + " cfm "
-                        + new File(projectDir, "build/example.jar").getAbsolutePath()
-                        + " manifest/MANIFEST.MF -C build/classes .",
+                List.of(
+                        new File(projectDir, ".jdk/bin/" + BuildConfig.toolFileName("jar")).getPath(),
+                        "cfm",
+                        new File(projectDir, "build/example.jar").getAbsolutePath(),
+                        "manifest/MANIFEST.MF",
+                        "-C",
+                        "build/classes",
+                        "."),
                 plan.command());
     }
 

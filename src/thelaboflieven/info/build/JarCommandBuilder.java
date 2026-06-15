@@ -5,6 +5,8 @@ import thelaboflieven.info.inifile.IniFileReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,13 +32,20 @@ public class JarCommandBuilder {
 
         var outputPath = outputJar.getAbsolutePath();
         var manifestFile = resolveManifestFile();
-        String command;
+        List<String> command = new ArrayList<>();
+        command.add(jarTool.getPath());
         if (manifestFile == null) {
-            command = jarTool.getPath() + " cf " + outputPath + " -C " + classesDir + " .";
+            command.add("cf");
         } else {
-            var manifestPath = manifestArgument(manifestFile);
-            command = jarTool.getPath() + " cfm " + outputPath + " " + manifestPath + " -C " + classesDir + " .";
+            command.add("cfm");
         }
+        command.add(outputPath);
+        if (manifestFile != null) {
+            command.add(manifestArgument(manifestFile));
+        }
+        command.add("-C");
+        command.add(classesDir);
+        command.add(".");
         return new JarPlan(command, outputPath, classesPath.getPath());
     }
 
@@ -138,10 +147,6 @@ public class JarCommandBuilder {
     }
 
     private String buildOutputDirectory() {
-        Map<String, String> buildSection = iniData.get("build");
-        if (buildSection != null && !buildSection.getOrDefault("directory", "").isBlank()) {
-            return buildSection.get("directory").trim();
-        }
-        return "build";
+        return BuildConfig.buildDirectory(iniData);
     }
 }

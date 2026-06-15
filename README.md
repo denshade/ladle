@@ -184,7 +184,7 @@ This runs (conceptually):
 
 On Windows, tool names use the `.exe` suffix (`javac.exe`, `java.exe`, `jar.exe`).
 
-**Path limitation:** Ladle splits the final command on spaces before execution. Values in `path`, `parameters`, and comma-separated entries in `paths` must not contain spaces. Use `path = $JAVA_HOME` only when `JAVA_HOME` has no spaces, or use a project-local `.jdk` download.
+Long `javac` command lines are written to `{build}/javac.args` and invoked as `javac @{build}/javac.args` when they would exceed the platform command-line limit. Paths with spaces are supported.
 
 #### `[build]`
 

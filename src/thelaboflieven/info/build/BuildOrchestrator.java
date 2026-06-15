@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.CommandsRunner;
+import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.inifile.IniFileReader;
 import thelaboflieven.info.download.DependencyPaths;
 
@@ -101,7 +102,7 @@ public class BuildOrchestrator {
         outputJar.getParentFile().mkdirs();
         var jarBuilder = new JarCommandBuilder(iniFile.getAbsolutePath());
         var jarPlan = jarBuilder.planFor(outputJar);
-        System.out.println("  jar: " + jarPlan.command());
+        System.out.println("  jar: " + CommandLine.format(jarPlan.command()));
         var exitCode = runner.run(List.of(jarPlan.command()));
         if (exitCode != 0) {
             throw new BuildFailedException(exitCode);

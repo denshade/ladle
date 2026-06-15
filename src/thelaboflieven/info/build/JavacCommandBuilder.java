@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
 
+import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.download.JdkInstaller;
 import thelaboflieven.info.inifile.IniFileReader;
 
@@ -40,18 +41,14 @@ public class JavacCommandBuilder {
 
         String classpath = CompileClasspath.resolve(projectDir, iniData);
 
-        List<String> command = new ArrayList<>();
-        var javacExecutable = BuildConfig.javacExecutable(projectDir, iniData);
-        command.add(javacExecutable.getPath());
-
+        var javacArguments = new ArrayList<String>();
         if (!classpath.isBlank()) {
-            command.add("-cp");
-            command.add(classpath);
+            javacArguments.add("-cp");
+            javacArguments.add(classpath);
         }
-        command.addAll(versionFlags);
-        if (!parameters.isBlank()) {
-            command.add(parameters);
-        }
+        javacArguments.addAll(versionFlags);
+        javacArguments.addAll(CommandLine.splitParameters(parameters));
+
         var sourceFileCount = 0;
         for (String source: sources.split(",")) {
             var sourceRoot = new File(projectDir, source.trim());
@@ -60,7 +57,7 @@ public class JavacCommandBuilder {
                     .filter(path -> path.toString().endsWith(".java"))
                     .collect(Collectors.toList());
             for (var javaFile : javaFiles) {
-                command.add(javaFile.toAbsolutePath().toString());
+                javacArguments.add(javaFile.toAbsolutePath().toString());
                 sourceFileCount++;
             }
         }
@@ -68,8 +65,16 @@ public class JavacCommandBuilder {
             throw new IllegalStateException("No .java files found in [sources].paths.");
         }
 
+        var javacExecutable = BuildConfig.javacExecutable(projectDir, iniData);
+        var buildDirectory = BuildConfig.buildDirectory(iniData);
+        var command = CommandLine.javacCommand(
+                javacExecutable.getPath(),
+                javacArguments,
+                projectDir,
+                buildDirectory + "/javac.args");
+
         return new BuildPlan(
-                String.join(" ", command),
+                command,
                 sourceFileCount,
                 javacExecutable.getPath(),
                 BuildConfig.javacParameterSummary(javacSection),

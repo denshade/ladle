@@ -1,6 +1,7 @@
 package thelaboflieven.info.test;
 
 import thelaboflieven.info.build.BuildConfig;
+import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.download.JdkInstaller;
 import thelaboflieven.info.inifile.IniFileReader;
 import thelaboflieven.info.download.TestDependencies;
@@ -77,24 +78,28 @@ public class TestCommandBuilder {
             return new TestPlan(List.of(), 0, javaExecutable.getPath(), runtimeClasspath, runner);
         }
 
-        var commands = new ArrayList<String>();
+        var commands = new ArrayList<List<String>>();
         var compileClasspath = joinClasspath(compileClasspathEntries);
-        var compileCommand = new ArrayList<String>();
-        compileCommand.add(javacExecutable.getPath());
-        compileCommand.add("-encoding");
-        compileCommand.add("UTF-8");
-        compileCommand.add("-d");
-        compileCommand.add(output);
-        compileCommand.add("-cp");
-        compileCommand.add(compileClasspath);
+        var compileArguments = new ArrayList<String>();
+        compileArguments.add("-encoding");
+        compileArguments.add("UTF-8");
+        compileArguments.add("-d");
+        compileArguments.add(output);
+        compileArguments.add("-cp");
+        compileArguments.add(compileClasspath);
         var javacSection = iniData.get("javac");
         if (javacSection != null) {
-            compileCommand.addAll(BuildConfig.javacVersionFlags(javacSection));
+            compileArguments.addAll(BuildConfig.javacVersionFlags(javacSection));
         }
         for (var testSourceFile : testSourceFiles) {
-            compileCommand.add(testSourceFile.toAbsolutePath().toString());
+            compileArguments.add(testSourceFile.toAbsolutePath().toString());
         }
-        commands.add(String.join(" ", compileCommand));
+        var buildDirectory = BuildConfig.buildDirectory(iniData);
+        commands.add(CommandLine.javacCommand(
+                javacExecutable.getPath(),
+                compileArguments,
+                projectDir,
+                buildDirectory + "/test-javac.args"));
 
         var runCommand = new ArrayList<String>();
         runCommand.add(javaExecutable.getPath());
@@ -107,7 +112,7 @@ public class TestCommandBuilder {
             runCommand.add("--select-class");
             runCommand.add(testClassName);
         }
-        commands.add(String.join(" ", runCommand));
+        commands.add(runCommand);
 
         return new TestPlan(commands, testClassNames.size(), javaExecutable.getPath(), runtimeClasspath, runner);
     }
