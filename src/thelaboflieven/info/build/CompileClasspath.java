@@ -1,8 +1,7 @@
 package thelaboflieven.info.build;
 
-import thelaboflieven.info.download.CompileOnlyDependencies;
+import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.download.DependencyPaths;
-import thelaboflieven.info.download.ImplementationDependencies;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -16,8 +15,8 @@ public final class CompileClasspath {
     public static String resolve(File projectDir, Map<String, Map<String, String>> iniData) {
         var entries = new ArrayList<String>();
         entries.addAll(subprojectEntries(projectDir, iniData));
-        entries.addAll(implementationEntries(projectDir, iniData));
-        entries.addAll(compileOnlyEntries(projectDir, iniData));
+        entries.addAll(dependencyEntries(projectDir, Dependencies.implementationPaths(iniData)));
+        entries.addAll(dependencyEntries(projectDir, Dependencies.compileOnlyPaths(iniData)));
         return String.join(String.valueOf(File.pathSeparatorChar), entries);
     }
 
@@ -41,14 +40,6 @@ public final class CompileClasspath {
             entries.add(relativePath);
         }
         return entries;
-    }
-
-    private static List<String> implementationEntries(File projectDir, Map<String, Map<String, String>> iniData) {
-        return dependencyEntries(projectDir, ImplementationDependencies.localPaths(iniData));
-    }
-
-    private static List<String> compileOnlyEntries(File projectDir, Map<String, Map<String, String>> iniData) {
-        return dependencyEntries(projectDir, CompileOnlyDependencies.localPaths(iniData));
     }
 
     private static List<String> dependencyEntries(File projectDir, List<String> relativePaths) {

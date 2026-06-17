@@ -14,8 +14,7 @@ public final class IniEnvironment {
         if (value == null || value.isBlank()) {
             return value == null ? "" : value;
         }
-        var expanded = expandBraced(value);
-        return expandSimple(expanded);
+        return expandPattern(SIMPLE, expandPattern(BRACED, value));
     }
 
     public static boolean referencesEnvironment(String value) {
@@ -25,18 +24,8 @@ public final class IniEnvironment {
         return BRACED.matcher(value).find() || SIMPLE.matcher(value).find();
     }
 
-    private static String expandBraced(String value) {
-        var matcher = BRACED.matcher(value);
-        var buffer = new StringBuffer();
-        while (matcher.find()) {
-            matcher.appendReplacement(buffer, Matcher.quoteReplacement(resolveVariable(matcher.group(1))));
-        }
-        matcher.appendTail(buffer);
-        return buffer.toString();
-    }
-
-    private static String expandSimple(String value) {
-        var matcher = SIMPLE.matcher(value);
+    private static String expandPattern(Pattern pattern, String value) {
+        var matcher = pattern.matcher(value);
         var buffer = new StringBuffer();
         while (matcher.find()) {
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(resolveVariable(matcher.group(1))));

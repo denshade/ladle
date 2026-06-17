@@ -1,6 +1,6 @@
 package thelaboflieven.info.build;
 
-import thelaboflieven.info.inifile.IniFileReader;
+import thelaboflieven.info.ProjectContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -8,21 +8,16 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.Map;
 
 public class BuildCleaner {
-    private static final String DEFAULT_BUILD_DIRECTORY = "build";
-
     private final String buildDirectory;
 
     public BuildCleaner(String iniFilePath) throws IOException {
-        var iniData = new IniFileReader().parseIniFile(iniFilePath);
-        Map<String, String> buildSection = iniData.get("build");
-        if (buildSection != null && !buildSection.getOrDefault("directory", "").isBlank()) {
-            buildDirectory = buildSection.get("directory").trim();
-        } else {
-            buildDirectory = DEFAULT_BUILD_DIRECTORY;
-        }
+        this(ProjectContext.load(iniFilePath));
+    }
+
+    public BuildCleaner(ProjectContext project) {
+        buildDirectory = BuildConfig.buildDirectory(project.iniData());
     }
 
     public String buildDirectory() {

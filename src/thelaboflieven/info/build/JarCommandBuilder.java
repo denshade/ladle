@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
-import thelaboflieven.info.inifile.IniFileReader;
+import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.ProjectPaths;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,19 +14,20 @@ import java.util.Set;
 public class JarCommandBuilder {
     private static final Set<String> RESERVED_JAR_KEYS = Set.of("name", "directory", "manifest", "main-class");
 
-    private final File projectDir;
-    private final Map<String, Map<String, String>> iniData;
+    private final ProjectContext project;
 
     public JarCommandBuilder(String iniFilePath) throws IOException {
-        var iniFile = new File(iniFilePath);
-        projectDir = iniFile.getParentFile();
-        iniData = new IniFileReader().parseIniFile(iniFilePath);
+        this(ProjectContext.load(iniFilePath));
+    }
+
+    public JarCommandBuilder(ProjectContext project) {
+        this.project = project;
     }
 
     public JarPlan planFor(File outputJar) throws IOException {
-        String classesDir = BuildConfig.classesDirectory(iniData);
-        var classesPath = new File(projectDir, classesDir);
-        var jarTool = BuildConfig.jarExecutable(projectDir, iniData);
+        String classesDir = BuildConfig.classesDirectory(project.iniData());
+        var classesPath = new File(project.projectDir(), classesDir);
+        var jarTool = BuildConfig.jarExecutable(project.projectDir(), project.iniData());
         if (!classesPath.isDirectory()) {
             throw new IllegalStateException("Missing compiled classes directory: " + classesPath.getPath());
         }
@@ -41,7 +43,7 @@ public class JarCommandBuilder {
         }
         command.add(outputPath);
         if (manifestFile != null) {
-            command.add(manifestArgument(manifestFile));
+            command.add(ProjectPaths.relativeTo(project.projectDir(), manifestFile));
         }
         command.add("-C");
         command.add(classesDir);
@@ -50,14 +52,14 @@ public class JarCommandBuilder {
     }
 
     public File releaseOutputJar() {
-        Map<String, String> jarSection = iniData.get("jar");
+        Map<String, String> jarSection = project.iniData().get("jar");
         if (jarSection == null) {
             throw new IllegalStateException("Missing [jar] section in INI file.");
         }
 
         var name = jarSection.getOrDefault("name", "").trim();
         if (name.isBlank()) {
-            name = projectDir.getName();
+            name = project.projectDir().getName();
         }
         if (name.isBlank()) {
             throw new IllegalStateException("Missing name in [jar] section of INI file.");
@@ -65,21 +67,21 @@ public class JarCommandBuilder {
 
         var outputDirectory = jarSection.getOrDefault("directory", "").trim();
         if (outputDirectory.isBlank()) {
-            outputDirectory = buildOutputDirectory();
+            outputDirectory = BuildConfig.buildDirectory(project.iniData());
         }
 
-        return new File(projectDir, outputDirectory + File.separator + name + ".jar").getAbsoluteFile();
+        return new File(project.projectDir(), outputDirectory + File.separator + name + ".jar").getAbsoluteFile();
     }
 
     private File resolveManifestFile() throws IOException {
-        Map<String, String> jarSection = iniData.get("jar");
+        Map<String, String> jarSection = project.iniData().get("jar");
         if (jarSection == null) {
             return null;
         }
 
         var manifestPath = jarSection.getOrDefault("manifest", "").trim();
         if (!manifestPath.isBlank()) {
-            var manifestFile = new File(projectDir, manifestPath);
+            var manifestFile = new File(project.projectDir(), manifestPath);
             if (!manifestFile.canRead()) {
                 throw new IllegalStateException("Cannot read manifest: " + manifestFile.getPath());
             }
@@ -91,7 +93,9 @@ public class JarCommandBuilder {
             return null;
         }
 
-        var generatedManifest = new File(projectDir, buildOutputDirectory() + File.separator + "MANIFEST.MF");
+        var generatedManifest = new File(
+                project.projectDir(),
+                BuildConfig.buildDirectory(project.iniData()) + File.separator + "MANIFEST.MF");
         generatedManifest.getParentFile().mkdirs();
         Files.writeString(generatedManifest.toPath(), manifestContent);
         return generatedManifest.getAbsoluteFile();
@@ -135,18 +139,5 @@ public class JarCommandBuilder {
             }
         }
         return builder.toString();
-    }
-
-    private String manifestArgument(File manifestFile) throws IOException {
-        var projectPath = projectDir.getCanonicalFile().toPath();
-        var manifestPath = manifestFile.getCanonicalFile().toPath();
-        if (manifestPath.startsWith(projectPath)) {
-            return projectPath.relativize(manifestPath).toString().replace('\\', '/');
-        }
-        return manifestFile.getPath();
-    }
-
-    private String buildOutputDirectory() {
-        return BuildConfig.buildDirectory(iniData);
     }
 }

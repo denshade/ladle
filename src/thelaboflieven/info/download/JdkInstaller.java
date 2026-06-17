@@ -1,6 +1,7 @@
 package thelaboflieven.info.download;
 
 import thelaboflieven.info.build.BuildConfig;
+import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.inifile.IniEnvironment;
 
 import java.io.File;
@@ -112,28 +113,10 @@ public final class JdkInstaller {
     }
 
     private static String archiveFileName(String downloadUrl) {
-        var path = URIishFileName.fromUrl(downloadUrl);
-        if (!path.isBlank()) {
-            return path;
-        }
-        return "jdk-" + platformKey() + ".archive";
-    }
-
-    private static final class URIishFileName {
-        private URIishFileName() {
-        }
-
-        static String fromUrl(String url) {
-            var withoutQuery = url;
-            var queryIndex = withoutQuery.indexOf('?');
-            if (queryIndex >= 0) {
-                withoutQuery = withoutQuery.substring(0, queryIndex);
-            }
-            var slash = withoutQuery.lastIndexOf('/');
-            if (slash < 0 || slash == withoutQuery.length() - 1) {
-                return "";
-            }
-            return withoutQuery.substring(slash + 1);
+        try {
+            return Dependencies.fileNameFromUrl(downloadUrl);
+        } catch (IllegalStateException e) {
+            return "jdk-" + platformKey() + ".archive";
         }
     }
 }

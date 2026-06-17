@@ -1,36 +1,38 @@
 package thelaboflieven.info.build;
 
-
+import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.download.JdkInstaller;
-import thelaboflieven.info.inifile.IniFileReader;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class JavacCommandBuilder {
-
-    private final File projectDir;
-    private final Map<String, Map<String, String>> iniData;
+    private final ProjectContext project;
 
     public JavacCommandBuilder(String iniFilePath) throws IOException {
-        var iniFile = new File(iniFilePath);
-        projectDir = iniFile.getParentFile();
-        iniData = new IniFileReader().parseIniFile(iniFilePath);
+        this(ProjectContext.load(iniFilePath));
+    }
+
+    public JavacCommandBuilder(ProjectContext project) {
+        this.project = project;
     }
 
     public BuildPlan buildPlan() throws IOException {
-        Map<String, String> javacSection = iniData.get("javac");
-        Map<String, String> sourcesSection = iniData.get("sources");
+        Map<String, String> javacSection = project.iniData().get("javac");
+        Map<String, String> sourcesSection = project.iniData().get("sources");
 
         if (javacSection == null || sourcesSection == null) {
             throw new IllegalStateException("Missing [javac] or [sources] section in INI file.");
         }
 
-        JdkInstaller.ensureInstalled(projectDir, iniData);
+        JdkInstaller.ensureInstalled(project.projectDir(), project.iniData());
 
         String parameters = javacSection.getOrDefault("parameters", "");
         var versionFlags = BuildConfig.javacVersionFlags(javacSection);
@@ -39,7 +41,7 @@ public class JavacCommandBuilder {
             throw new IllegalStateException("Missing paths in [sources] section of INI file.");
         }
 
-        String classpath = CompileClasspath.resolve(projectDir, iniData);
+        String classpath = CompileClasspath.resolve(project.projectDir(), project.iniData());
 
         var javacArguments = new ArrayList<String>();
         if (!classpath.isBlank()) {
@@ -50,8 +52,8 @@ public class JavacCommandBuilder {
         javacArguments.addAll(CommandLine.splitParameters(parameters));
 
         var sourceFileCount = 0;
-        for (String source: sources.split(",")) {
-            var sourceRoot = new File(projectDir, source.trim());
+        for (String source : sources.split(",")) {
+            var sourceRoot = new File(project.projectDir(), source.trim());
             List<Path> javaFiles = Files.walk(sourceRoot.toPath())
                     .filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith(".java"))
@@ -65,12 +67,12 @@ public class JavacCommandBuilder {
             throw new IllegalStateException("No .java files found in [sources].paths.");
         }
 
-        var javacExecutable = BuildConfig.javacExecutable(projectDir, iniData);
-        var buildDirectory = BuildConfig.buildDirectory(iniData);
+        var javacExecutable = BuildConfig.javacExecutable(project.projectDir(), project.iniData());
+        var buildDirectory = BuildConfig.buildDirectory(project.iniData());
         var command = CommandLine.javacCommand(
                 javacExecutable.getPath(),
                 javacArguments,
-                projectDir,
+                project.projectDir(),
                 buildDirectory + "/javac.args");
 
         return new BuildPlan(
@@ -81,5 +83,4 @@ public class JavacCommandBuilder {
                 classpath
         );
     }
-
 }

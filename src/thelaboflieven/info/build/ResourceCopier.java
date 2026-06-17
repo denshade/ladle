@@ -1,6 +1,6 @@
 package thelaboflieven.info.build;
 
-import thelaboflieven.info.inifile.IniFileReader;
+import thelaboflieven.info.ProjectContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,29 +9,30 @@ import java.nio.file.Path;
 import java.util.Map;
 
 public class ResourceCopier {
-    private final File projectDir;
-    private final Map<String, Map<String, String>> iniData;
+    private final ProjectContext project;
 
     public ResourceCopier(String iniFilePath) throws IOException {
-        var iniFile = new File(iniFilePath);
-        projectDir = iniFile.getParentFile();
-        iniData = new IniFileReader().parseIniFile(iniFilePath);
+        this(ProjectContext.load(iniFilePath));
+    }
+
+    public ResourceCopier(ProjectContext project) {
+        this.project = project;
     }
 
     public ResourceCopyPlan copyResources() throws IOException {
-        Map<String, String> resourcesSection = iniData.get("resources");
+        Map<String, String> resourcesSection = project.iniData().get("resources");
         if (resourcesSection == null || resourcesSection.isEmpty()) {
             return new ResourceCopyPlan(0);
         }
 
-        var classesDir = new File(projectDir, BuildConfig.classesDirectory(iniData));
+        var classesDir = new File(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
         classesDir.mkdirs();
 
         var copiedCount = 0;
         var paths = resourcesSection.get("paths");
         if (paths != null && !paths.isBlank()) {
             for (var pathEntry : paths.split(",")) {
-                var sourceRoot = new File(projectDir, pathEntry.trim());
+                var sourceRoot = new File(project.projectDir(), pathEntry.trim());
                 if (!sourceRoot.isDirectory()) {
                     continue;
                 }
@@ -43,7 +44,7 @@ public class ResourceCopier {
             if ("paths".equals(entry.getKey())) {
                 continue;
             }
-            var source = new File(projectDir, entry.getKey().trim());
+            var source = new File(project.projectDir(), entry.getKey().trim());
             if (!source.exists()) {
                 throw new IllegalStateException("Missing resource source: " + source.getPath());
             }

@@ -1,10 +1,10 @@
 package thelaboflieven.info.test;
 
+import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.build.BuildConfig;
 import thelaboflieven.info.CommandLine;
+import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.download.JdkInstaller;
-import thelaboflieven.info.inifile.IniFileReader;
-import thelaboflieven.info.download.TestDependencies;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,17 +19,18 @@ public class TestCommandBuilder {
     private static final String DEFAULT_RUNNER = "org.junit.platform.console.ConsoleLauncher";
     private static final String DEFAULT_OUTPUT = "build/test-classes";
 
-    private final File projectDir;
-    private final Map<String, Map<String, String>> iniData;
+    private final ProjectContext project;
 
     public TestCommandBuilder(String iniFilePath) throws IOException {
-        var iniFile = new File(iniFilePath);
-        projectDir = iniFile.getParentFile();
-        iniData = new IniFileReader().parseIniFile(iniFilePath);
+        this(ProjectContext.load(iniFilePath));
+    }
+
+    public TestCommandBuilder(ProjectContext project) {
+        this.project = project;
     }
 
     public TestPlan buildPlan() throws IOException {
-        Map<String, String> testSection = iniData.get("test");
+        Map<String, String> testSection = project.iniData().get("test");
         if (testSection == null) {
             throw new IllegalStateException("Missing [test] section in INI file.");
         }
@@ -37,21 +38,21 @@ public class TestCommandBuilder {
         String sources = testSection.getOrDefault("sources", "");
         String classpath = testSection.getOrDefault("classpath", "build/classes");
         String output = testSection.getOrDefault("output", DEFAULT_OUTPUT);
-        String runner = resolveRunner(testSection);
+        validateRunner(testSection);
 
         if (sources.isBlank()) {
             throw new IllegalStateException("Missing sources in [test] section of INI file.");
         }
 
-        JdkInstaller.ensureInstalled(projectDir, iniData);
+        JdkInstaller.ensureInstalled(project.projectDir(), project.iniData());
 
         var runtimeClasspathEntries = resolveRuntimeClasspathEntries(classpath);
         if (runtimeClasspathEntries.isEmpty()) {
             throw new IllegalStateException("Missing classpath in [test] section of INI file.");
         }
 
-        var javacExecutable = resolveJavacExecutable(testSection);
-        var javaExecutable = resolveJavaExecutable(testSection);
+        var javacExecutable = resolveTool(testSection, "javac");
+        var javaExecutable = resolveTool(testSection, "java");
 
         var compileClasspathEntries = resolveCompileClasspathEntries(runtimeClasspathEntries);
         var runtimeClasspath = joinClasspath(runtimeClasspathEntries, output);
@@ -59,7 +60,7 @@ public class TestCommandBuilder {
         var testSourceFiles = new ArrayList<Path>();
 
         for (String sourceRoot : sources.split(",")) {
-            var root = new File(projectDir, sourceRoot.trim());
+            var root = new File(project.projectDir(), sourceRoot.trim());
             if (!root.isDirectory()) {
                 throw new IllegalStateException("Test source path does not exist: " + root.getPath());
             }
@@ -75,7 +76,7 @@ public class TestCommandBuilder {
         }
 
         if (testClassNames.isEmpty()) {
-            return new TestPlan(List.of(), 0, javaExecutable.getPath(), runtimeClasspath, runner);
+            return new TestPlan(List.of(), 0, javaExecutable.getPath(), runtimeClasspath, DEFAULT_RUNNER);
         }
 
         var commands = new ArrayList<List<String>>();
@@ -87,25 +88,25 @@ public class TestCommandBuilder {
         compileArguments.add(output);
         compileArguments.add("-cp");
         compileArguments.add(compileClasspath);
-        var javacSection = iniData.get("javac");
+        var javacSection = project.iniData().get("javac");
         if (javacSection != null) {
             compileArguments.addAll(BuildConfig.javacVersionFlags(javacSection));
         }
         for (var testSourceFile : testSourceFiles) {
             compileArguments.add(testSourceFile.toAbsolutePath().toString());
         }
-        var buildDirectory = BuildConfig.buildDirectory(iniData);
+        var buildDirectory = BuildConfig.buildDirectory(project.iniData());
         commands.add(CommandLine.javacCommand(
                 javacExecutable.getPath(),
                 compileArguments,
-                projectDir,
+                project.projectDir(),
                 buildDirectory + "/test-javac.args"));
 
         var runCommand = new ArrayList<String>();
         runCommand.add(javaExecutable.getPath());
         runCommand.add("-cp");
         runCommand.add(runtimeClasspath);
-        runCommand.add(runner);
+        runCommand.add(DEFAULT_RUNNER);
         runCommand.add("execute");
         runCommand.add("--details-theme=ascii");
         for (var testClassName : testClassNames) {
@@ -114,31 +115,26 @@ public class TestCommandBuilder {
         }
         commands.add(runCommand);
 
-        return new TestPlan(commands, testClassNames.size(), javaExecutable.getPath(), runtimeClasspath, runner);
+        return new TestPlan(commands, testClassNames.size(), javaExecutable.getPath(), runtimeClasspath, DEFAULT_RUNNER);
     }
 
-    private File resolveJavacExecutable(Map<String, String> testSection) {
+    private File resolveTool(Map<String, String> testSection, String tool) {
         if (!testSection.getOrDefault("path", "").isBlank()) {
             return BuildConfig.toolExecutable(
-                    BuildConfig.jdkRoot(projectDir, testSection.get("path")),
-                    "javac");
+                    BuildConfig.jdkRoot(project.projectDir(), testSection.get("path")),
+                    tool);
         }
-        return BuildConfig.javacExecutable(projectDir, iniData);
+        return switch (tool) {
+            case "javac" -> BuildConfig.javacExecutable(project.projectDir(), project.iniData());
+            case "java" -> BuildConfig.javaExecutable(project.projectDir(), project.iniData());
+            default -> throw new IllegalArgumentException("Unknown tool: " + tool);
+        };
     }
 
-    private File resolveJavaExecutable(Map<String, String> testSection) {
-        if (!testSection.getOrDefault("path", "").isBlank()) {
-            return BuildConfig.toolExecutable(
-                    BuildConfig.jdkRoot(projectDir, testSection.get("path")),
-                    "java");
-        }
-        return BuildConfig.javaExecutable(projectDir, iniData);
-    }
-
-    private String resolveRunner(Map<String, String> testSection) {
+    private static void validateRunner(Map<String, String> testSection) {
         String runner = testSection.getOrDefault("runner", DEFAULT_RUNNER).trim();
         if (runner.isBlank()) {
-            return DEFAULT_RUNNER;
+            return;
         }
         if (runner.contains("JUnitCore")) {
             throw new IllegalStateException(
@@ -148,28 +144,18 @@ public class TestCommandBuilder {
             throw new IllegalStateException(
                     "Unsupported test runner: " + runner + ". Use " + DEFAULT_RUNNER + ".");
         }
-        return DEFAULT_RUNNER;
     }
 
     private List<String> resolveRuntimeClasspathEntries(String classpath) {
-        return addDependencySection(splitEntries(classpath), iniData.get("testdependencies"));
+        return addDependencyPaths(splitEntries(classpath), project.iniData().get(Dependencies.TEST));
     }
 
     private List<String> resolveCompileClasspathEntries(List<String> runtimeEntries) {
-        return addDependencySection(new ArrayList<>(runtimeEntries), iniData.get("compileonlydependencies"));
+        return addDependencyPaths(new ArrayList<>(runtimeEntries), project.iniData().get(Dependencies.COMPILE_ONLY));
     }
 
-    private List<String> addDependencySection(List<String> entries, Map<String, String> dependencies) {
-        if (dependencies == null) {
-            return entries;
-        }
-        for (var entry : dependencies.entrySet()) {
-            var name = entry.getKey().trim();
-            var url = entry.getValue().trim();
-            if (name.isBlank() || url.isBlank()) {
-                continue;
-            }
-            var path = TestDependencies.localPath(name, url);
+    private List<String> addDependencyPaths(List<String> entries, Map<String, String> section) {
+        for (var path : Dependencies.localPathsFromSection(section)) {
             if (!entries.contains(path)) {
                 entries.add(path);
             }

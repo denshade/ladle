@@ -61,7 +61,7 @@ public final class CommandLine {
 
         var argfile = new File(projectDir, argfileRelativePath);
         writeArgfile(argfile.toPath(), arguments);
-        var argfileArgument = "@" + toArgfileReference(projectDir, argfile);
+        var argfileArgument = "@" + ProjectPaths.relativeTo(projectDir, argfile);
         return List.of(executable, argfileArgument);
     }
 
@@ -83,15 +83,6 @@ public final class CommandLine {
             length += 1 + argument.length();
         }
         return length > ARGFILE_THRESHOLD_CHARS;
-    }
-
-    private static String toArgfileReference(File projectDir, File argfile) throws IOException {
-        var projectPath = projectDir.getCanonicalFile().toPath();
-        var argfilePath = argfile.getCanonicalFile().toPath();
-        if (argfilePath.startsWith(projectPath)) {
-            return projectPath.relativize(argfilePath).toString().replace('\\', '/');
-        }
-        return argfile.getPath();
     }
 
     private static String quote(String argument) {

@@ -1,26 +1,24 @@
 package thelaboflieven.info.download;
 
-import thelaboflieven.info.inifile.IniFileReader;
+import thelaboflieven.info.ProjectContext;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class DependencyInstaller {
-    private final Map<String, Map<String, String>> iniData;
+    private final ProjectContext project;
 
     public DependencyInstaller(String iniFilePath) throws IOException {
-        iniData = new IniFileReader().parseIniFile(iniFilePath);
+        this(ProjectContext.load(iniFilePath));
+    }
+
+    public DependencyInstaller(ProjectContext project) {
+        this.project = project;
     }
 
     public List<DependencyArtifact> artifacts() {
-        var artifacts = new ArrayList<DependencyArtifact>();
-        addFromPairs(artifacts, iniData.get("dependencies"));
-        addFromPairs(artifacts, iniData.get("compileonlydependencies"));
-        addFromPairs(artifacts, iniData.get("testdependencies"));
-        return artifacts;
+        return Dependencies.artifacts(project.iniData());
     }
 
     public int install(File projectDir) throws IOException {
@@ -36,28 +34,9 @@ public class DependencyInstaller {
 
         for (var artifact : artifacts) {
             var target = new File(dependenciesDir, artifact.fileName());
-            download(artifact.url(), target);
+            HttpFiles.download(artifact.url(), target);
             System.out.println("  " + artifact.fileName());
         }
         return artifacts.size();
-    }
-
-    private void addFromPairs(List<DependencyArtifact> artifacts, Map<String, String> pairs) {
-        if (pairs == null) {
-            return;
-        }
-
-        for (var entry : pairs.entrySet()) {
-            var name = entry.getKey().trim();
-            var url = entry.getValue().trim();
-            if (name.isBlank() || url.isBlank()) {
-                continue;
-            }
-            artifacts.add(new DependencyArtifact(url, TestDependencies.fileName(name, url)));
-        }
-    }
-
-    private void download(String url, File target) throws IOException {
-        HttpFiles.download(url, target);
     }
 }
