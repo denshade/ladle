@@ -1,7 +1,6 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.CommandsRunner;
-import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.download.DependencyPaths;
 
@@ -13,24 +12,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class BuildOrchestrator {
-    public void build(File iniFile) throws IOException, InterruptedException {
-        build(ProjectContext.load(iniFile.getAbsolutePath()), null, null, new HashSet<>());
+public class CompileOrchestrator {
+    private final JarPackager jarPackager;
+
+    public CompileOrchestrator() {
+        this(new JarPackager());
     }
 
-    public void release(File iniFile) throws IOException, InterruptedException {
-        var project = ProjectContext.load(iniFile.getAbsolutePath());
-        build(project, null, null, new HashSet<>());
-        var runner = new CommandsRunner(project.projectDir());
-        packageReleaseJar(project, runner);
-        System.out.println("Release successful.");
+    CompileOrchestrator(JarPackager jarPackager) {
+        this.jarPackager = jarPackager;
     }
 
-    private void build(
+    public void compile(File iniFile) throws IOException, InterruptedException {
+        compile(ProjectContext.load(iniFile.getAbsolutePath()), new HashSet<>(), null);
+    }
+
+    public void compile(ProjectContext project) throws IOException, InterruptedException {
+        compile(project, new HashSet<>(), null);
+    }
+
+    private void compile(
             ProjectContext project,
-            File publishJarTo,
-            String publishJarName,
-            Set<String> visitedInChain
+            Set<String> visitedInChain,
+            SubprojectPublish publish
     ) throws IOException, InterruptedException {
         var canonicalPath = project.iniFile().getCanonicalPath();
         if (!visitedInChain.add(canonicalPath)) {
@@ -38,10 +42,9 @@ public class BuildOrchestrator {
         }
 
         try {
-
             new File(project.projectDir(), DependencyPaths.DIRECTORY).mkdirs();
             for (var subproject : readSubprojects(project.iniData())) {
-                buildSubproject(project.projectDir(), subproject, visitedInChain);
+                compileSubproject(project.projectDir(), subproject, visitedInChain);
             }
 
             var plan = new JavacCommandBuilder(project).buildPlan();
@@ -57,9 +60,10 @@ public class BuildOrchestrator {
                 printResourceCopyPlan(resourcePlan);
             }
 
-            if (publishJarTo != null && publishJarName != null) {
-                var jarBuilder = new JarCommandBuilder(project);
-                packageJar(runner, jarBuilder, new File(publishJarTo, publishJarName + ".jar"));
+            if (publish != null) {
+                jarPackager.packageJar(
+                        project,
+                        new File(publish.directory(), publish.name() + ".jar"));
             }
 
             System.out.println("Build successful.");
@@ -68,7 +72,7 @@ public class BuildOrchestrator {
         }
     }
 
-    private void buildSubproject(
+    private void compileSubproject(
             File projectDir,
             Subproject subproject,
             Set<String> visitedInChain
@@ -81,33 +85,10 @@ public class BuildOrchestrator {
 
         System.out.println("Building subproject " + subproject.name() + " (" + subproject.path() + ")");
         var publishDir = new File(projectDir, DependencyPaths.DIRECTORY);
-        build(ProjectContext.load(subIni.getAbsolutePath()), publishDir, subproject.name(), visitedInChain);
-    }
-
-    private void packageReleaseJar(ProjectContext project, CommandsRunner runner)
-            throws IOException, InterruptedException {
-        var jarBuilder = new JarCommandBuilder(project);
-        var outputJar = jarBuilder.releaseOutputJar();
-        System.out.println("Packaging " + outputJar.getName() + "...");
-        packageJar(runner, jarBuilder, outputJar);
-    }
-
-    private void packageJar(
-            CommandsRunner runner,
-            JarCommandBuilder jarBuilder,
-            File outputJar
-    ) throws IOException, InterruptedException {
-        outputJar.getParentFile().mkdirs();
-        var jarPlan = jarBuilder.planFor(outputJar);
-        System.out.println("  jar: " + CommandLine.format(jarPlan.command()));
-        var exitCode = runner.run(List.of(jarPlan.command()));
-        if (exitCode != 0) {
-            throw new BuildFailedException(exitCode);
-        }
-        if (!outputJar.canRead()) {
-            throw new IllegalStateException("Failed to create " + outputJar.getPath());
-        }
-        System.out.println("Created " + outputJar.getPath());
+        compile(
+                ProjectContext.load(subIni.getAbsolutePath()),
+                visitedInChain,
+                new SubprojectPublish(publishDir, subproject.name()));
     }
 
     private List<Subproject> readSubprojects(Map<String, Map<String, String>> iniData) {
@@ -143,5 +124,8 @@ public class BuildOrchestrator {
 
     private void printResourceCopyPlan(ResourceCopyPlan plan) {
         System.out.println("Copying " + plan.fileCount() + " resource file(s) into classes directory...");
+    }
+
+    private record SubprojectPublish(File directory, String name) {
     }
 }

@@ -1,8 +1,9 @@
 package thelaboflieven.info;
 
 import thelaboflieven.info.build.BuildFailedException;
-import thelaboflieven.info.build.BuildOrchestrator;
 import thelaboflieven.info.build.BuildCleaner;
+import thelaboflieven.info.build.CompileOrchestrator;
+import thelaboflieven.info.build.JarPackager;
 import thelaboflieven.info.download.DependencyInstaller;
 import thelaboflieven.info.download.JdkInstaller;
 import thelaboflieven.info.test.TestCommandBuilder;
@@ -12,11 +13,6 @@ import java.io.File;
 import java.io.IOException;
 
 public class Ladle {
-    @FunctionalInterface
-    private interface OrchestratorAction {
-        void run(BuildOrchestrator orchestrator, File iniFile) throws IOException, InterruptedException;
-    }
-
     public static void main(String[] args) throws IOException, InterruptedException {
         if (args.length == 0) {
             printWelcome();
@@ -30,8 +26,8 @@ public class Ladle {
 
         String command = args[0];
         switch (command) {
-            case "build" -> runOrchestrator("build", args, BuildOrchestrator::build);
-            case "release" -> runOrchestrator("release", args, BuildOrchestrator::release);
+            case "build" -> runBuild(args);
+            case "release" -> runRelease(args);
             case "dependency" -> runDependency(args);
             case "test" -> runTest(args);
             case "clear" -> runClear(args);
@@ -43,11 +39,26 @@ public class Ladle {
         }
     }
 
-    private static void runOrchestrator(String command, String[] args, OrchestratorAction action)
-            throws IOException, InterruptedException {
-        var buildIni = resolveIniFile(command, args);
+    private static void runBuild(String[] args) throws IOException, InterruptedException {
+        var buildIni = resolveIniFile("build", args);
         try {
-            action.run(new BuildOrchestrator(), buildIni);
+            new CompileOrchestrator().compile(buildIni);
+        } catch (BuildFailedException e) {
+            System.err.println(e.getMessage() + ".");
+            System.exit(e.exitCode());
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
+            System.exit(2);
+        }
+    }
+
+    private static void runRelease(String[] args) throws IOException, InterruptedException {
+        var buildIni = resolveIniFile("release", args);
+        try {
+            var project = ProjectContext.load(buildIni.getAbsolutePath());
+            new CompileOrchestrator().compile(project);
+            new JarPackager().packageRelease(project);
+            System.out.println("Release successful.");
         } catch (BuildFailedException e) {
             System.err.println(e.getMessage() + ".");
             System.exit(e.exitCode());
