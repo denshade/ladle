@@ -38,16 +38,15 @@ public class BuildOrchestrator {
         }
 
         try {
-            var runner = new CommandsRunner(project.projectDir());
 
             new File(project.projectDir(), DependencyPaths.DIRECTORY).mkdirs();
             for (var subproject : readSubprojects(project.iniData())) {
                 buildSubproject(project.projectDir(), subproject, visitedInChain);
             }
 
-            var builder = new JavacCommandBuilder(project);
-            var plan = builder.buildPlan();
+            var plan = new JavacCommandBuilder(project).buildPlan();
             printBuildPlan(project.iniFile(), plan);
+            var runner = new CommandsRunner(project.projectDir());
             var exitCode = runner.run(List.of(plan.command()));
             if (exitCode != 0) {
                 throw new BuildFailedException(exitCode);
