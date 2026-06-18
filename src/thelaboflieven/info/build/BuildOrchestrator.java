@@ -42,7 +42,7 @@ public class BuildOrchestrator {
 
             new File(project.projectDir(), DependencyPaths.DIRECTORY).mkdirs();
             for (var subproject : readSubprojects(project.iniData())) {
-                buildSubproject(project.projectDir(), runner, subproject, visitedInChain);
+                buildSubproject(project.projectDir(), subproject, visitedInChain);
             }
 
             var builder = new JavacCommandBuilder(project);
@@ -60,7 +60,7 @@ public class BuildOrchestrator {
 
             if (publishJarTo != null && publishJarName != null) {
                 var jarBuilder = new JarCommandBuilder(project);
-                packageJar(project, runner, jarBuilder, new File(publishJarTo, publishJarName + ".jar"));
+                packageJar(runner, jarBuilder, new File(publishJarTo, publishJarName + ".jar"));
             }
 
             System.out.println("Build successful.");
@@ -71,7 +71,6 @@ public class BuildOrchestrator {
 
     private void buildSubproject(
             File projectDir,
-            CommandsRunner runner,
             Subproject subproject,
             Set<String> visitedInChain
     ) throws IOException, InterruptedException {
@@ -91,11 +90,10 @@ public class BuildOrchestrator {
         var jarBuilder = new JarCommandBuilder(project);
         var outputJar = jarBuilder.releaseOutputJar();
         System.out.println("Packaging " + outputJar.getName() + "...");
-        packageJar(project, runner, jarBuilder, outputJar);
+        packageJar(runner, jarBuilder, outputJar);
     }
 
     private void packageJar(
-            ProjectContext project,
             CommandsRunner runner,
             JarCommandBuilder jarBuilder,
             File outputJar
