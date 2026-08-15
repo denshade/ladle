@@ -28,7 +28,7 @@ Ladle now has three dependency sections:
 | `[compileonlydependencies]` | `compileOnly` | yes | yes | no |
 | `[testdependencies]` | `testImplementation` | no | yes | yes |
 
-`api`, `testFixtures`, and other Gradle scopes are not supported yet.
+`api` and other Gradle scopes are not supported yet. Own-module test fixtures are compiled via `[testfixtures]` (issue #10); consuming another project's test fixtures as a dependency scope is not.
 
 **Affected code:** [DependencyInstaller.java](src/thelaboflieven/info/download/DependencyInstaller.java), [CompileOnlyDependencies.java](src/thelaboflieven/info/download/CompileOnlyDependencies.java), [CompileClasspath.java](src/thelaboflieven/info/build/CompileClasspath.java), [TestCommandBuilder.java](src/thelaboflieven/info/test/TestCommandBuilder.java)
 
@@ -122,15 +122,13 @@ JPMS is uncommon. A `[module]` section, derived `--module-path` heuristics, and 
 
 ## 10. Test fixtures source set
 
-**Status:** open
+**Status:** fixed
 
-Gradle's `testFixtures` compiles shared test utilities separately and exposes them on the test classpath. Ladle has a single `[test].sources` root and no concept of a secondary compile pass for shared test code.
+`[testfixtures]` compiles shared test utilities (all `.java` files, not only `*Test.java`) to a separate output directory (`build/test-fixtures-classes` by default) and prepends that directory to the test compile and runtime classpaths during `ladle test`.
 
 **Affected code:** [TestCommandBuilder.java](src/thelaboflieven/info/test/TestCommandBuilder.java)
 
 **Impact:** Mockito core keeps test helpers under `src/testFixtures/java/` (e.g. `org.mockitoutil.*`). Tests depend on this output being compiled and on the classpath before main tests compile.
-
-**Fix direction:** Add `[testfixtures]` section (sources + classpath) compiled to a separate output dir and prepended to the test classpath.
 
 ---
 
@@ -156,7 +154,7 @@ Prioritize issues that unblock Mockito core compilation and packaging without sc
 2. ~~**#6** Command tokenization~~ — done
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
 4. ~~**#3** Resources~~ — done; **#4** JAR include/exclude — remaining gap for a correct artifact
-5. **#10 + #7** Test fixtures + JUnit 4 — required for running mockito-core tests
+5. ~~**#10** Test fixtures~~ — done; **#7** JUnit 4 — required for running mockito-core tests
 6. **#8** Annotation processors — required for mockito-errorprone
 7. **#11** Incremental compile — quality-of-life
 8. ~~**#9** JPMS~~ — demoted; use `[javac].parameters` or exclude `module-info.java`

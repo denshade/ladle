@@ -289,7 +289,7 @@ If `[dependencies]`, `[compileonlydependencies]`, and `[testdependencies]` are a
 
 ### Tests (`test` command)
 
-The `test` command compiles test sources and runs them with JUnit 5. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
+The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
 
 #### `[test]`
 
@@ -316,6 +316,38 @@ output = build/test-classes
 
 If no `*Test.java` files are found, Ladle prints a warning and exits successfully.
 
+#### `[testfixtures]`
+
+Optional. Compiles shared test utilities (Gradle `testFixtures`) to a separate output directory and puts that directory first on the test compile and runtime classpaths. Use this for helpers that are not named `*Test.java`.
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `sources` | yes | — | Comma-separated fixture source roots. Ladle compiles every `.java` file it finds. |
+| `classpath` | no | `build/classes` | Comma-separated extra classpath entries used when compiling fixtures. Entries from `[testdependencies]` are added to the fixture compile classpath; entries from `[compileonlydependencies]` are added to the fixture compile classpath only. |
+| `output` | no | `build/test-fixtures-classes` | Directory for compiled fixture classes. Prepended to the test compile and runtime classpaths. |
+
+Example:
+
+```ini
+[testfixtures]
+sources = src/testFixtures/java
+classpath = build/classes
+output = build/test-fixtures-classes
+
+[test]
+sources = src/test/java
+classpath = build/classes
+output = build/test-classes
+```
+
+During `ladle test`, Ladle:
+
+1. Compiles all `.java` files under `[testfixtures].sources` to `[testfixtures].output`.
+2. Prepends that output directory to the test compile and runtime classpaths.
+3. Compiles `*Test.java` files and runs them as usual.
+
+Long fixture `javac` command lines are written to `{build}/test-fixtures-javac.args`.
+
 ### Full example
 
 ```ini
@@ -330,6 +362,9 @@ paths = src
 [testdependencies]
 org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-jupiter-api/6.1.0/junit-jupiter-api-6.1.0.jar
 junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
+
+[testfixtures]
+sources = src/testFixtures/java
 
 [test]
 sources = test
@@ -357,4 +392,4 @@ Workflow:
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.
 
-See `examples/` for sample projects used to test builds, including subprojects and a failing compile.
+See `examples/` for sample projects used to test builds, including subprojects, test fixtures, and a failing compile.
