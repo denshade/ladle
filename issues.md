@@ -106,15 +106,17 @@ There is no first-class support for annotation processors (`-processor`, process
 
 ## 9. Java Platform Module System (JPMS)
 
-**Status:** open
+**Status:** demoted (no first-class support)
 
-No INI support for `--module-path`, `--add-modules`, `--add-reads`, or `--add-exports`. Modular projects must encode all JPMS flags manually in `[javac].parameters`.
+JPMS is uncommon. A `[module]` section, derived `--module-path` heuristics, and test-time `--add-reads` are not worth INI surface.
+
+`[javac].parameters` already accepts `--module-path`, `--add-modules`, `--add-exports`, and `--add-reads`. If `module-info.java` in `[sources].paths` makes `javac` fail, exclude that file or put the flags in `parameters` — do not add a module system to Ladle.
 
 **Affected code:** [JavacCommandBuilder.java](src/thelaboflieven/info/build/JavacCommandBuilder.java)
 
-**Impact:** Mockito core and mockito-junit-jupiter ship `module-info.java` with `requires`/`exports` directives. Modular compile needs correct module-path layout for dependencies.
+**Impact:** Mockito core ships `module-info.java`. A classpath-only artifact is still useful to almost every consumer. Faithful modular compile is optional.
 
-**Fix direction:** Add `[module]` INI section or derive module-path from modular JARs in `dependencies/`.
+**Fix direction (optional, later):** Source include/exclude, or if `module-info.java` is present put dependency JARs on `--module-path` and print that line. No `[module]` section.
 
 ---
 
@@ -153,8 +155,8 @@ Prioritize issues that unblock Mockito core compilation and packaging without sc
 1. ~~**#5** Cross-platform tools~~ — done
 2. ~~**#6** Command tokenization~~ — done
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
-4. **#9** JPMS — required for mockito-core module-info
-5. **#3 + #4** Resources + JAR — required for a correct artifact
-6. **#10 + #7** Test fixtures + JUnit 4 — required for running mockito-core tests
-7. **#8** Annotation processors — required for mockito-errorprone
-8. **#11** Incremental compile — quality-of-life
+4. ~~**#3** Resources~~ — done; **#4** JAR include/exclude — remaining gap for a correct artifact
+5. **#10 + #7** Test fixtures + JUnit 4 — required for running mockito-core tests
+6. **#8** Annotation processors — required for mockito-errorprone
+7. **#11** Incremental compile — quality-of-life
+8. ~~**#9** JPMS~~ — demoted; use `[javac].parameters` or exclude `module-info.java`
