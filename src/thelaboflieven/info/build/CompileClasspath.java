@@ -20,6 +20,12 @@ public final class CompileClasspath {
         return String.join(String.valueOf(File.pathSeparatorChar), entries);
     }
 
+    public static String resolveProcessorPath(File projectDir, Map<String, Map<String, String>> iniData) {
+        return String.join(
+                String.valueOf(File.pathSeparatorChar),
+                dependencyEntries(projectDir, Dependencies.annotationProcessorPaths(iniData)));
+    }
+
     private static List<String> subprojectEntries(File projectDir, Map<String, Map<String, String>> iniData) {
         Map<String, String> subprojects = iniData.get("subproject");
         if (subprojects == null) {

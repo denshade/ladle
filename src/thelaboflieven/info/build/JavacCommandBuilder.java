@@ -2,6 +2,7 @@ package thelaboflieven.info.build;
 
 import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.CommandLine;
+import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.download.JdkInstaller;
 
 import java.io.File;
@@ -42,11 +43,21 @@ public class JavacCommandBuilder {
         }
 
         String classpath = CompileClasspath.resolve(project.projectDir(), project.iniData());
+        String processorPath = CompileClasspath.resolveProcessorPath(project.projectDir(), project.iniData());
+        String processorClasses = Dependencies.annotationProcessorClasses(project.iniData());
 
         var javacArguments = new ArrayList<String>();
         if (!classpath.isBlank()) {
             javacArguments.add("-cp");
             javacArguments.add(classpath);
+        }
+        if (!processorPath.isBlank()) {
+            javacArguments.add("-processorpath");
+            javacArguments.add(processorPath);
+        }
+        if (!processorClasses.isBlank()) {
+            javacArguments.add("-processor");
+            javacArguments.add(processorClasses);
         }
         javacArguments.addAll(versionFlags);
         javacArguments.addAll(CommandLine.splitParameters(parameters));
@@ -80,7 +91,8 @@ public class JavacCommandBuilder {
                 sourceFileCount,
                 javacExecutable.getPath(),
                 BuildConfig.javacParameterSummary(javacSection),
-                classpath
+                classpath,
+                processorPath
         );
     }
 }

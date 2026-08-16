@@ -7,6 +7,7 @@ public record BuildPlan(
         int sourceFileCount,
         String javacPath,
         String parameters,
-        String classpath
+        String classpath,
+        String processorPath
 ) {
 }

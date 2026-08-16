@@ -138,7 +138,7 @@ paths = src/main/resources, build/generated-resources
 build/generated/inject-MockMethodDispatcher.raw = inject-MockMethodDispatcher.raw
 ```
 
-During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). Run `ladle dependency` first so dependency JARs and a missing project JDK exist on disk.
+During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). `[annotationprocessor]` JARs go on `javac -processorpath`, not `-cp`. Run `ladle dependency` first so dependency JARs and a missing project JDK exist on disk.
 
 Example `build.ini` with a downloaded project JDK:
 
@@ -296,7 +296,33 @@ org.junit.jupiter.api = https://repo1.maven.org/maven2/org/junit/jupiter/junit-j
 junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/6.1.0/junit-platform-console-standalone-6.1.0.jar
 ```
 
-If `[dependencies]`, `[compileonlydependencies]`, and `[testdependencies]` are all empty and `[javac]` has no JDK to install, `ladle dependency` prints a warning and exits successfully.
+#### `[annotationprocessor]`
+
+Annotation processor JARs (Gradle `annotationProcessor`) use the same `name = url` format. Files are written under `dependencies/`. Ladle adds them to `javac -processorpath` during `ladle build`, not to `-cp`. Omit `processor` to let `javac` discover processors from `META-INF/services/javax.annotation.processing.Processor` in those JARs.
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| *jar entries* | no | — | `name = url` pairs downloaded by `ladle dependency`. |
+| `processor` | no | *(discover)* | Comma-separated processor class names passed as `javac -processor`. Reserved; not downloaded. |
+
+Example:
+
+```ini
+[compileonlydependencies]
+auto-service-annotations = https://repo1.maven.org/maven2/com/google/auto/service/auto-service-annotations/1.1.1/auto-service-annotations-1.1.1.jar
+
+[annotationprocessor]
+auto-service = https://repo1.maven.org/maven2/com/google/auto/service/auto-service/1.1.1/auto-service-1.1.1.jar
+processor = com.google.auto.service.processor.AutoServiceProcessor
+```
+
+This runs (conceptually):
+
+```
+javac -cp dependencies/auto-service-annotations-1.1.1.jar -processorpath dependencies/auto-service-1.1.1.jar -processor com.google.auto.service.processor.AutoServiceProcessor …
+```
+
+If `[dependencies]`, `[compileonlydependencies]`, `[testdependencies]`, and `[annotationprocessor]` are all empty and `[javac]` has no JDK to install, `ladle dependency` prints a warning and exits successfully.
 
 ### Tests (`test` command)
 

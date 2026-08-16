@@ -1,13 +1,17 @@
 package thelaboflieven.info.download;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class Dependencies {
     public static final String IMPLEMENTATION = "dependencies";
     public static final String COMPILE_ONLY = "compileonlydependencies";
     public static final String TEST = "testdependencies";
+    public static final String ANNOTATION_PROCESSOR = "annotationprocessor";
+    private static final Set<String> ANNOTATION_PROCESSOR_RESERVED_KEYS = Set.of("processor");
 
     private Dependencies() {
     }
@@ -22,6 +26,19 @@ public final class Dependencies {
 
     public static List<String> testPaths(Map<String, Map<String, String>> iniData) {
         return localPaths(iniData, TEST);
+    }
+
+    public static List<String> annotationProcessorPaths(Map<String, Map<String, String>> iniData) {
+        return localPathsFromSection(
+                withoutReservedKeys(iniData.get(ANNOTATION_PROCESSOR), ANNOTATION_PROCESSOR_RESERVED_KEYS));
+    }
+
+    public static String annotationProcessorClasses(Map<String, Map<String, String>> iniData) {
+        Map<String, String> section = iniData.get(ANNOTATION_PROCESSOR);
+        if (section == null) {
+            return "";
+        }
+        return section.getOrDefault("processor", "").trim();
     }
 
     public static List<String> localPaths(Map<String, Map<String, String>> iniData, String sectionName) {
@@ -50,6 +67,9 @@ public final class Dependencies {
         addArtifacts(artifacts, iniData.get(IMPLEMENTATION));
         addArtifacts(artifacts, iniData.get(COMPILE_ONLY));
         addArtifacts(artifacts, iniData.get(TEST));
+        addArtifacts(
+                artifacts,
+                withoutReservedKeys(iniData.get(ANNOTATION_PROCESSOR), ANNOTATION_PROCESSOR_RESERVED_KEYS));
         return artifacts;
     }
 
@@ -100,5 +120,18 @@ public final class Dependencies {
             }
             artifacts.add(new DependencyArtifact(url, fileName(name, url)));
         }
+    }
+
+    private static Map<String, String> withoutReservedKeys(Map<String, String> section, Set<String> reserved) {
+        if (section == null) {
+            return null;
+        }
+        var filtered = new LinkedHashMap<String, String>();
+        for (var entry : section.entrySet()) {
+            if (!reserved.contains(entry.getKey().trim())) {
+                filtered.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return filtered;
     }
 }

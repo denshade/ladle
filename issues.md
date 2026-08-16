@@ -86,15 +86,11 @@ Ladle passes argv as `List<String>` end-to-end to `ProcessBuilder`. Long `javac`
 
 ## 8. Annotation processor support
 
-**Status:** open
+**Status:** fixed
 
-There is no first-class support for annotation processors (`-processor`, processor classpath). Flags can be appended manually to `[javac].parameters`, but processor JARs and `-cp` orchestration are left to the user.
+`[annotationprocessor]` downloads processor JARs with `ladle dependency` and adds them to `javac -processorpath` during `ladle build`. They stay off the program `-cp`. Optional `processor = com.example.Foo` becomes `-processor`. Without it, `javac` discovers processors from `META-INF/services`.
 
-**Affected code:** [JavacCommandBuilder.java](src/thelaboflieven/info/build/JavacCommandBuilder.java)
-
-**Impact:** `mockito-errorprone` uses AutoService (`annotationProcessor`). Without structured support, the build.ini becomes fragile.
-
-**Fix direction:** Add `[annotationProcessor]` or extend `[dependencies]` with a `processor` scope that wires `-processor` and `-processorpath` automatically.
+**Affected code:** [JavacCommandBuilder.java](src/thelaboflieven/info/build/JavacCommandBuilder.java), [CompileClasspath.java](src/thelaboflieven/info/build/CompileClasspath.java), [Dependencies.java](src/thelaboflieven/info/download/Dependencies.java)
 
 ---
 
@@ -149,6 +145,6 @@ Prioritize issues that unblock Mockito core compilation and packaging without sc
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
 4. ~~**#3** Resources~~ — done; ~~**#4** JAR include/exclude~~ — done
 5. ~~**#10** Test fixtures~~ — done; ~~**#7** JUnit 4~~ — done
-6. **#8** Annotation processors — required for mockito-errorprone
+6. ~~**#8** Annotation processors~~ — done
 7. **#11** Incremental compile — quality-of-life
 8. ~~**#9** JPMS~~ — demoted; use `[javac].parameters` or exclude `module-info.java`

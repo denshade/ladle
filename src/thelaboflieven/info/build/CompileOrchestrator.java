@@ -119,6 +119,9 @@ public class CompileOrchestrator {
         if (!plan.classpath().isBlank()) {
             System.out.println("  classpath: " + plan.classpath());
         }
+        if (!plan.processorPath().isBlank()) {
+            System.out.println("  processorpath: " + plan.processorPath());
+        }
         System.out.println("Running javac...");
     }
 
