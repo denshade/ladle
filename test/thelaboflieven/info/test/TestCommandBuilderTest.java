@@ -188,6 +188,90 @@ public class TestCommandBuilderTest {
         assertTrue(plan.classpath().startsWith("build/test-fixtures-classes" + File.pathSeparator));
     }
 
+    @Test
+    void usesConsoleLauncherSelectClassFlagsByDefault() throws Exception {
+        var projectDir = newProject("ladle-test-junit5");
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+
+                [test]
+                sources = test
+                """);
+
+        var plan = new TestCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath()).buildPlan();
+        var testRun = plan.commands().get(1);
+
+        assertEquals(TestCommandBuilder.JUNIT5_RUNNER, plan.runner());
+        assertTrue(testRun.contains(TestCommandBuilder.JUNIT5_RUNNER));
+        assertTrue(testRun.contains("execute"));
+        assertTrue(testRun.contains("--select-class"));
+        assertTrue(testRun.contains("example.AppTest"));
+        assertFalse(testRun.contains(TestCommandBuilder.JUNIT4_RUNNER));
+    }
+
+    @Test
+    void usesJunit4RunnerPassesClassNamesToJUnitCore() throws Exception {
+        var projectDir = newProject("ladle-test-junit4");
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+
+                [testdependencies]
+                junit.jar = https://example.com/junit.jar
+
+                [test]
+                sources = test
+                classpath = build/classes
+                runner = org.junit.runner.JUnitCore
+                """);
+
+        var plan = new TestCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath()).buildPlan();
+        var testRun = plan.commands().get(1);
+
+        assertEquals(TestCommandBuilder.JUNIT4_RUNNER, plan.runner());
+        assertEquals(2, plan.commands().size());
+        assertTrue(testRun.contains(TestCommandBuilder.JUNIT4_RUNNER));
+        assertTrue(testRun.contains("example.AppTest"));
+        assertTrue(flagValue(testRun, "-cp").contains("dependencies/junit.jar"));
+        assertFalse(testRun.contains("execute"));
+        assertFalse(testRun.contains("--select-class"));
+        assertFalse(testRun.contains(TestCommandBuilder.JUNIT5_RUNNER));
+    }
+
+    @Test
+    void rejectsUnknownTestRunner() throws Exception {
+        var projectDir = newProject("ladle-test-unknown-runner");
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+
+                [test]
+                sources = test
+                runner = org.example.CustomRunner
+                """);
+
+        var iniPath = new File(projectDir, "build.ini").getAbsolutePath();
+        var error = assertThrows(IllegalStateException.class, () -> new TestCommandBuilder(iniPath).buildPlan());
+        assertEquals(
+                "Unsupported test runner: org.example.CustomRunner. Use "
+                        + TestCommandBuilder.JUNIT5_RUNNER + " (JUnit 5) or "
+                        + TestCommandBuilder.JUNIT4_RUNNER + " (JUnit 4).",
+                error.getMessage());
+    }
+
     private static File newProject(String prefix) throws Exception {
         var projectDir = Files.createTempDirectory(prefix).toFile();
         var binDir = new File(projectDir, ".jdk/bin");

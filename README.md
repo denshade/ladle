@@ -300,7 +300,7 @@ If `[dependencies]`, `[compileonlydependencies]`, and `[testdependencies]` are a
 
 ### Tests (`test` command)
 
-The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
+The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5 (default) or JUnit 4. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
 
 #### `[test]`
 
@@ -309,7 +309,7 @@ The `test` command compiles optional `[testfixtures]` sources, then test sources
 | `sources` | yes | — | Comma-separated test source roots. Ladle finds classes named `*Test.java`. |
 | `classpath` | no | `build/classes` | Comma-separated extra classpath entries. Entries from `[testdependencies]` are added to the test compile and runtime classpaths; entries from `[compileonlydependencies]` are added to the test compile classpath only. |
 | `output` | no | `build/test-classes` | Directory for compiled test classes. |
-| `runner` | no | `org.junit.platform.console.ConsoleLauncher` | Main class used to run tests. Ladle invokes `execute --details-theme=ascii --select-class` for each `*Test` class found. |
+| `runner` | no | `org.junit.platform.console.ConsoleLauncher` | Main class used to run tests. JUnit 5 (default): `execute --details-theme=ascii --select-class` for each `*Test` class. JUnit 4: set `runner = org.junit.runner.JUnitCore`; Ladle passes the test class names as arguments. |
 | `path` | no | `[javac].path` | JDK root when different from the build JDK. |
 
 Example:
@@ -326,6 +326,22 @@ output = build/test-classes
 ```
 
 If no `*Test.java` files are found, Ladle prints a warning and exits successfully.
+
+JUnit 4:
+
+```ini
+[testdependencies]
+junit-4.13.2.jar = https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+hamcrest-core-1.3.jar = https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
+
+[test]
+sources = test
+classpath = build/classes
+output = build/test-classes
+runner = org.junit.runner.JUnitCore
+```
+
+That runs `java -cp … org.junit.runner.JUnitCore example.AppTest`. JUnit 4.13 needs Hamcrest on the runtime classpath. JUnit 4 tests can also run through the default ConsoleLauncher if `junit-vintage-engine` is on `[testdependencies]`.
 
 #### `[testfixtures]`
 
@@ -403,4 +419,4 @@ Workflow:
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.
 
-See `examples/` for sample projects used to test builds, including subprojects, test fixtures, and a failing compile.
+See `examples/` for sample projects used to test builds, including subprojects, test fixtures, JUnit 4, and a failing compile.

@@ -69,3 +69,21 @@ Shared test helpers live under `src/testFixtures/java` and are compiled before t
 ```
 
 Expected: exit code 0, `Tests successful.`
+
+## JUnit 4
+
+Runs tests with `org.junit.runner.JUnitCore` instead of the default JUnit 5 ConsoleLauncher.
+
+```powershell
+.\bin\ladle.ps1 dependency examples\junit4\build.ini
+.\bin\ladle.ps1 build examples\junit4\build.ini
+.\bin\ladle.ps1 test examples\junit4\build.ini
+```
+
+```sh
+./bin/ladle dependency examples/junit4/build.ini
+./bin/ladle build examples/junit4/build.ini
+./bin/ladle test examples/junit4/build.ini
+```
+
+Expected: exit code 0, `Tests successful.`, and the printed runner is `org.junit.runner.JUnitCore`.

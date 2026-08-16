@@ -76,15 +76,11 @@ Ladle passes argv as `List<String>` end-to-end to `ProcessBuilder`. Long `javac`
 
 ## 7. JUnit 4 test execution
 
-**Status:** open
+**Status:** fixed
 
-`ladle test` only supports JUnit 5 via `org.junit.platform.console.ConsoleLauncher`. JUnit 4 runners are explicitly rejected.
+`ladle test` supports JUnit 5 via `org.junit.platform.console.ConsoleLauncher` (default) and JUnit 4 via `[test].runner = org.junit.runner.JUnitCore`. JUnitCore is invoked with the discovered `*Test` class names as arguments. JUnit 4 tests can also run through ConsoleLauncher when `junit-vintage-engine` is on `[testdependencies]`.
 
-**Affected code:** [TestCommandBuilder.java](src/thelaboflieven/info/test/TestCommandBuilder.java)
-
-**Impact:** Mockito core has ~380 test classes using `org.junit.Test`. They cannot run via `ladle test` today.
-
-**Fix direction:** Support JUnit Vintage (e.g. `--select-class` via ConsoleLauncher with vintage engine on classpath, or allow configuring the runner without hard rejection of JUnit 4).
+**Affected code:** [TestCommandBuilder.java](src/thelaboflieven/info/test/TestCommandBuilder.java), [Ladle.java](src/thelaboflieven/info/Ladle.java)
 
 ---
 
@@ -152,7 +148,7 @@ Prioritize issues that unblock Mockito core compilation and packaging without sc
 2. ~~**#6** Command tokenization~~ — done
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
 4. ~~**#3** Resources~~ — done; ~~**#4** JAR include/exclude~~ — done
-5. ~~**#10** Test fixtures~~ — done; **#7** JUnit 4 — required for running mockito-core tests
+5. ~~**#10** Test fixtures~~ — done; ~~**#7** JUnit 4~~ — done
 6. **#8** Annotation processors — required for mockito-errorprone
 7. **#11** Incremental compile — quality-of-life
 8. ~~**#9** JPMS~~ — demoted; use `[javac].parameters` or exclude `module-info.java`

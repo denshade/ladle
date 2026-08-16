@@ -16,7 +16,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TestCommandBuilder {
-    private static final String DEFAULT_RUNNER = "org.junit.platform.console.ConsoleLauncher";
+    public static final String JUNIT5_RUNNER = "org.junit.platform.console.ConsoleLauncher";
+    public static final String JUNIT4_RUNNER = "org.junit.runner.JUnitCore";
     private static final String DEFAULT_OUTPUT = "build/test-classes";
     private static final String DEFAULT_FIXTURE_OUTPUT = "build/test-fixtures-classes";
     private static final String DEFAULT_CLASSPATH = "build/classes";
@@ -40,7 +41,7 @@ public class TestCommandBuilder {
         String sources = testSection.getOrDefault("sources", "");
         String classpath = testSection.getOrDefault("classpath", DEFAULT_CLASSPATH);
         String output = testSection.getOrDefault("output", DEFAULT_OUTPUT);
-        validateRunner(testSection);
+        var runner = resolveRunner(testSection);
 
         if (sources.isBlank()) {
             throw new IllegalStateException("Missing sources in [test] section of INI file.");
@@ -82,7 +83,7 @@ public class TestCommandBuilder {
         }
 
         if (testClassNames.isEmpty()) {
-            return new TestPlan(List.of(), 0, javaExecutable.getPath(), runtimeClasspath, DEFAULT_RUNNER);
+            return new TestPlan(List.of(), 0, javaExecutable.getPath(), runtimeClasspath, runner);
         }
 
         var commands = new ArrayList<List<String>>();
@@ -101,21 +102,42 @@ public class TestCommandBuilder {
                 joinClasspath(compileClasspathEntries),
                 testSourceFiles,
                 buildDirectory + "/test-javac.args"));
+        commands.add(testRunCommand(
+                javaExecutable,
+                runtimeClasspath,
+                runner,
+                testClassNames,
+                buildDirectory + "/test-run.args"));
 
-        var runCommand = new ArrayList<String>();
-        runCommand.add(javaExecutable.getPath());
-        runCommand.add("-cp");
-        runCommand.add(runtimeClasspath);
-        runCommand.add(DEFAULT_RUNNER);
-        runCommand.add("execute");
-        runCommand.add("--details-theme=ascii");
-        for (var testClassName : testClassNames) {
-            runCommand.add("--select-class");
-            runCommand.add(testClassName);
+        return new TestPlan(commands, testClassNames.size(), javaExecutable.getPath(), runtimeClasspath, runner);
+    }
+
+    private List<String> testRunCommand(
+            File javaExecutable,
+            String runtimeClasspath,
+            String runner,
+            List<String> testClassNames,
+            String argfileRelativePath
+    ) throws IOException {
+        var arguments = new ArrayList<String>();
+        arguments.add("-cp");
+        arguments.add(runtimeClasspath);
+        arguments.add(runner);
+        if (JUNIT4_RUNNER.equals(runner)) {
+            arguments.addAll(testClassNames);
+        } else {
+            arguments.add("execute");
+            arguments.add("--details-theme=ascii");
+            for (var testClassName : testClassNames) {
+                arguments.add("--select-class");
+                arguments.add(testClassName);
+            }
         }
-        commands.add(runCommand);
-
-        return new TestPlan(commands, testClassNames.size(), javaExecutable.getPath(), runtimeClasspath, DEFAULT_RUNNER);
+        return CommandLine.javacCommand(
+                javaExecutable.getPath(),
+                arguments,
+                project.projectDir(),
+                argfileRelativePath);
     }
 
     private FixtureCompile parseFixtures() throws IOException {
@@ -197,19 +219,17 @@ public class TestCommandBuilder {
         };
     }
 
-    private static void validateRunner(Map<String, String> testSection) {
-        String runner = testSection.getOrDefault("runner", DEFAULT_RUNNER).trim();
-        if (runner.isBlank()) {
-            return;
+    private static String resolveRunner(Map<String, String> testSection) {
+        String runner = testSection.getOrDefault("runner", JUNIT5_RUNNER).trim();
+        if (runner.isBlank() || runner.equals(JUNIT5_RUNNER)) {
+            return JUNIT5_RUNNER;
         }
-        if (runner.contains("JUnitCore")) {
-            throw new IllegalStateException(
-                    "JUnit 4 runner is not supported. Remove [test].runner from build.ini to use JUnit 5.");
+        if (runner.equals(JUNIT4_RUNNER)) {
+            return JUNIT4_RUNNER;
         }
-        if (!runner.equals(DEFAULT_RUNNER)) {
-            throw new IllegalStateException(
-                    "Unsupported test runner: " + runner + ". Use " + DEFAULT_RUNNER + ".");
-        }
+        throw new IllegalStateException(
+                "Unsupported test runner: " + runner + ". Use " + JUNIT5_RUNNER
+                        + " (JUnit 5) or " + JUNIT4_RUNNER + " (JUnit 4).");
     }
 
     private List<String> resolveRuntimeClasspathEntries(String classpath) {

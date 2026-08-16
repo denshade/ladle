@@ -128,13 +128,20 @@ public class Ladle {
 
     private static void printTestPlan(File buildIni, TestPlan plan) {
         System.out.println("Testing from " + buildIni.getName());
-        System.out.println("Running " + plan.testClassCount() + " test class(es) with JUnit 5");
+        System.out.println("Running " + plan.testClassCount() + " test class(es) with " + frameworkLabel(plan.runner()));
         System.out.println("  java: " + plan.javaPath());
         System.out.println("  classpath: " + plan.classpath());
         System.out.println("  runner: " + plan.runner());
         for (int i = 0; i < plan.commands().size(); i++) {
             System.out.println("  command " + (i + 1) + ": " + CommandLine.format(plan.commands().get(i)));
         }
+    }
+
+    private static String frameworkLabel(String runner) {
+        if (TestCommandBuilder.JUNIT4_RUNNER.equals(runner)) {
+            return "JUnit 4";
+        }
+        return "JUnit 5";
     }
 
     private static File resolveIniFile(String command, String[] args) {
