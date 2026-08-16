@@ -202,6 +202,8 @@ Required for `ladle release`. Describes the JAR written after compilation and re
 | `directory` | no | `[build].directory` | Directory that receives the JAR (for example `build` or `lib`). |
 | `manifest` | no | — | Path to a `MANIFEST.MF` file relative to the project directory. When set, Ladle runs `jar cfm` instead of `jar cf`. |
 | `main-class` | no | — | Shorthand for a generated manifest with `Main-Class`. Ignored when `manifest` is set. |
+| `include` | no | all files | Comma-separated Ant-style globs of paths relative to the classes directory. When omitted, every file is packaged (`jar … -C {classes} .`). |
+| `exclude` | no | — | Comma-separated Ant-style globs to omit after `include`. `*` does not cross `/`; `**` matches any depth. |
 | *other keys* | no | — | Additional manifest attributes when no `manifest` file is configured (for example `premain-class = org.example.Agent`). |
 
 Example:
@@ -219,6 +221,15 @@ Or without a manifest file:
 [jar]
 name = ladle
 main-class = thelaboflieven.info.Ladle
+```
+
+Filter packaged entries with `include` and `exclude`. Patterns are matched against the path inside the classes directory (`build/classes/org/example/Foo.class` is `org/example/Foo.class`). When either key is set, Ladle lists matching files on the `jar` command instead of `.`.
+
+```ini
+[jar]
+name = mylib
+include = **/*.class, **/*.properties, META-INF/**
+exclude = module-info.class, **/internal/**
 ```
 
 This writes `build/myapp.jar` when you run `./bin/ladle release build.ini`.

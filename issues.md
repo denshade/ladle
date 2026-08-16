@@ -46,13 +46,11 @@ Ladle copies non-Java files from `[resources]` into the classes directory after 
 
 ## 4. JAR packaging for root modules
 
-**Status:** fixed (partial — `ladle release`, `[jar]` name/directory/manifest; no include/exclude support yet)
+**Status:** fixed
 
-`ladle release` compiles the root module, copies resources, and packages a JAR using `[jar].name` and `[jar].directory`. Subprojects are still published automatically to `dependencies/{name}.jar` during parent builds.
+`ladle release` compiles the root module, copies resources, and packages a JAR using `[jar].name` and `[jar].directory`. `[jar].include` and `[jar].exclude` are comma-separated Ant-style globs of paths relative to the classes directory. Subprojects are still published automatically to `dependencies/{name}.jar` during parent builds.
 
-**Affected code:** [BuildOrchestrator.java](src/thelaboflieven/info/build/BuildOrchestrator.java), [JarCommandBuilder.java](src/thelaboflieven/info/build/JarCommandBuilder.java), [Ladle.java](src/thelaboflieven/info/Ladle.java)
-
-**Remaining gap:** Include/exclude patterns for packaged entries.
+**Affected code:** [CompileOrchestrator.java](src/thelaboflieven/info/build/CompileOrchestrator.java), [JarCommandBuilder.java](src/thelaboflieven/info/build/JarCommandBuilder.java), [PathGlobs.java](src/thelaboflieven/info/build/PathGlobs.java), [Ladle.java](src/thelaboflieven/info/Ladle.java)
 
 ---
 
@@ -153,7 +151,7 @@ Prioritize issues that unblock Mockito core compilation and packaging without sc
 1. ~~**#5** Cross-platform tools~~ — done
 2. ~~**#6** Command tokenization~~ — done
 3. ~~**#1** Dependency classpath~~ — done; ~~**#2** compile-only scopes~~ — done (`[compileonlydependencies]`)
-4. ~~**#3** Resources~~ — done; **#4** JAR include/exclude — remaining gap for a correct artifact
+4. ~~**#3** Resources~~ — done; ~~**#4** JAR include/exclude~~ — done
 5. ~~**#10** Test fixtures~~ — done; **#7** JUnit 4 — required for running mockito-core tests
 6. **#8** Annotation processors — required for mockito-errorprone
 7. **#11** Incremental compile — quality-of-life

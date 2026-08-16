@@ -1,18 +1,21 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.ProjectPaths;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class JarCommandBuilder {
-    private static final Set<String> RESERVED_JAR_KEYS = Set.of("name", "directory", "manifest", "main-class");
+    private static final Set<String> RESERVED_JAR_KEYS = Set.of(
+            "name", "directory", "manifest", "main-class", "include", "exclude");
 
     private final ProjectContext project;
 
@@ -34,21 +37,53 @@ public class JarCommandBuilder {
 
         var outputPath = outputJar.getAbsolutePath();
         var manifestFile = resolveManifestFile();
-        List<String> command = new ArrayList<>();
-        command.add(jarTool.getPath());
+        var jarSection = project.iniData().get("jar");
+        var entries = selectEntries(classesPath, PathGlobs.fromJarSection(jarSection));
+
+        var jarArguments = new ArrayList<String>();
         if (manifestFile == null) {
-            command.add("cf");
+            jarArguments.add("cf");
         } else {
-            command.add("cfm");
+            jarArguments.add("cfm");
         }
-        command.add(outputPath);
+        jarArguments.add(outputPath);
         if (manifestFile != null) {
-            command.add(ProjectPaths.relativeTo(project.projectDir(), manifestFile));
+            jarArguments.add(ProjectPaths.relativeTo(project.projectDir(), manifestFile));
         }
-        command.add("-C");
-        command.add(classesDir);
-        command.add(".");
+        jarArguments.add("-C");
+        jarArguments.add(classesDir);
+        jarArguments.addAll(entries);
+
+        var command = CommandLine.javacCommand(
+                jarTool.getPath(),
+                jarArguments,
+                project.projectDir(),
+                BuildConfig.buildDirectory(project.iniData()) + "/jar.args");
         return new JarPlan(command, outputPath, classesPath.getPath());
+    }
+
+    private List<String> selectEntries(File classesPath, PathGlobs globs) throws IOException {
+        if (!globs.hasFilters()) {
+            return List.of(".");
+        }
+
+        var classesRoot = classesPath.toPath().toAbsolutePath().normalize();
+        try (var stream = Files.walk(classesRoot)) {
+            var entries = stream
+                    .filter(Files::isRegularFile)
+                    .map(path -> relativeJarPath(classesRoot, path))
+                    .filter(globs::accepts)
+                    .sorted()
+                    .toList();
+            if (entries.isEmpty()) {
+                throw new IllegalStateException("No files matched [jar] include/exclude patterns.");
+            }
+            return entries;
+        }
+    }
+
+    private static String relativeJarPath(Path classesRoot, Path file) {
+        return classesRoot.relativize(file).toString().replace('\\', '/');
     }
 
     public File releaseOutputJar() {
