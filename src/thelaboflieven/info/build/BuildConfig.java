@@ -15,6 +15,10 @@ public final class BuildConfig {
     private BuildConfig() {
     }
 
+    public static boolean hasSources(Map<String, Map<String, String>> iniData) {
+        return iniData.get("sources") != null;
+    }
+
     public static String classesDirectory(Map<String, Map<String, String>> iniData) {
         Map<String, String> javacSection = iniData.get("javac");
         if (javacSection == null) {

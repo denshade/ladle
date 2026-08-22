@@ -43,16 +43,25 @@ public class CompileOrchestrator {
 
         try {
             new File(project.projectDir(), DependencyPaths.DIRECTORY).mkdirs();
-            for (var subproject : readSubprojects(project.iniData())) {
+            var subprojects = readSubprojects(project.iniData());
+            for (var subproject : subprojects) {
                 compileSubproject(project.projectDir(), subproject, visitedInChain);
             }
 
-            var plan = new JavacCommandBuilder(project).buildPlan();
-            printBuildPlan(project.iniFile(), plan);
-            var runner = new CommandsRunner(project.projectDir());
-            var exitCode = runner.run(List.of(plan.command()));
-            if (exitCode != 0) {
-                throw new BuildFailedException(exitCode);
+            if (BuildConfig.hasSources(project.iniData())) {
+                var plan = new JavacCommandBuilder(project).buildPlan();
+                printBuildPlan(project.iniFile(), plan);
+                var runner = new CommandsRunner(project.projectDir());
+                var exitCode = runner.run(List.of(plan.command()));
+                if (exitCode != 0) {
+                    throw new BuildFailedException(exitCode);
+                }
+            } else if (subprojects.isEmpty()) {
+                throw new IllegalStateException(
+                        "Missing [sources] section in INI file. Omit it only when [subproject] is present.");
+            } else {
+                System.out.println(
+                        "No [sources] in " + project.iniFile().getName() + "; compiling subprojects only.");
             }
 
             var resourcePlan = new ResourceCopier(project).copyResources();

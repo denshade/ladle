@@ -7,6 +7,7 @@ import java.nio.file.Files;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JavacCommandBuilderTest {
@@ -98,6 +99,21 @@ public class JavacCommandBuilderTest {
                 "com.google.auto.service.processor.AutoServiceProcessor",
                 flagValue(plan.command(), "-processor"));
         assertEquals("dependencies/auto-service-1.1.1.jar", flagValue(plan.command(), "-processorpath"));
+    }
+
+    @Test
+    void failsWhenSourcesSectionMissing() throws Exception {
+        var projectDir = newProject("ladle-javac-no-sources");
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+                parameters = -d build/classes
+                """);
+
+        var thrown = assertThrows(
+                IllegalStateException.class,
+                () -> new JavacCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath()).buildPlan());
+        assertEquals("Missing [sources] section in INI file.", thrown.getMessage());
     }
 
     private static File newProject(String prefix) throws Exception {

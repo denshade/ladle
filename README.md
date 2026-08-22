@@ -101,13 +101,13 @@ Ladle reads a plain INI file. Sections use `[name]` headers. Each line inside a 
 
 ### Build (`build` command)
 
-The `build` command compiles Java sources with `javac`. It requires `[javac]` and `[sources]` sections.
+The `build` command compiles Java sources with `javac`. A project that compiles code needs `[javac]` and `[sources]`. Omit `[sources]` when this INI only builds `[subproject]` entries.
 
 #### `[javac]`
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `path` | yes | — | JDK root directory. Use `$JAVA_HOME` for an installed JDK, or a project-local path such as `.jdk` (downloaded by `ladle dependency` when `download.*` URLs are configured). Supports `$VAR` and `${VAR}` environment expansion. |
+| `path` | yes, when compiling | — | JDK root directory. Use `$JAVA_HOME` for an installed JDK, or a project-local path such as `.jdk` (downloaded by `ladle dependency` when `download.*` URLs are configured). Supports `$VAR` and `${VAR}` environment expansion. Not required when `[sources]` is omitted. |
 | `download.windows` | no | — | Windows JDK archive URL. Used when `path` points at a missing local JDK. |
 | `download.linux` | no | — | Linux JDK archive URL. |
 | `download.macos` | no | — | macOS JDK archive URL. |
@@ -118,9 +118,11 @@ The `build` command compiles Java sources with `javac`. It requires `[javac]` an
 
 #### `[sources]`
 
+Optional. Omit this section when the project has no Java sources of its own and only builds `[subproject]` entries. Ladle then skips `javac` for this project after the subprojects are built.
+
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `paths` | yes | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
+| `paths` | yes, when section present | — | Comma-separated list of source roots. Ladle walks each directory recursively and compiles every `.java` file it finds. |
 
 #### `[resources]`
 
@@ -239,6 +241,8 @@ This writes `build/myapp.jar` when you run `./bin/ladle release build.ini`.
 
 Subprojects are built recursively before the current project. Each entry uses `name = path`, where `path` is a directory containing a `build.ini`. The subproject is compiled, packaged as a JAR, and written to `dependencies/{name}.jar` for use when compiling the parent.
 
+A root INI can list subprojects and omit `[sources]` (and `[javac]`) when it has no sources of its own.
+
 Example:
 
 ```ini
@@ -251,7 +255,7 @@ Build order:
 
 1. Build each subproject (and their subprojects) recursively.
 2. Publish each subproject JAR to `dependencies/{name}.jar`.
-3. Compile the current project with those JARs on the classpath.
+3. Compile the current project with those JARs on the classpath, or skip `javac` when `[sources]` is omitted.
 
 ### Dependencies (`dependency` command)
 

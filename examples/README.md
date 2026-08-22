@@ -14,7 +14,19 @@ Build ladle first if `lib/ladle.jar` is missing:
 
 ## Subprojects
 
-A library subproject is built first; its JAR is published to `app/dependencies/lib.jar`, then the app compiles against it.
+The root `examples/subprojects/build.ini` has no `[sources]` section. It only lists subprojects, so `ladle build` compiles `lib` and `app` and skips `javac` for the root.
+
+```powershell
+.\bin\ladle.ps1 build examples\subprojects\build.ini
+```
+
+```sh
+./bin/ladle build examples/subprojects/build.ini
+```
+
+Expected: exit code 0, `examples/subprojects/dependencies/lib.jar` and `examples/subprojects/dependencies/app.jar` exist. Building `app` also publishes `lib` to `examples/subprojects/app/dependencies/lib.jar`.
+
+A library subproject can also be built from the app INI; its JAR is published to `app/dependencies/lib.jar`, then the app compiles against it.
 
 ```powershell
 .\bin\ladle.ps1 build examples\subprojects\app\build.ini

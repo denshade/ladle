@@ -29,8 +29,11 @@ public class JavacCommandBuilder {
         Map<String, String> javacSection = project.iniData().get("javac");
         Map<String, String> sourcesSection = project.iniData().get("sources");
 
-        if (javacSection == null || sourcesSection == null) {
-            throw new IllegalStateException("Missing [javac] or [sources] section in INI file.");
+        if (javacSection == null) {
+            throw new IllegalStateException("Missing [javac] section in INI file.");
+        }
+        if (sourcesSection == null) {
+            throw new IllegalStateException("Missing [sources] section in INI file.");
         }
 
         JdkInstaller.ensureInstalled(project.projectDir(), project.iniData());

@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BuildConfigTest {
     @Test
@@ -74,5 +76,11 @@ public class BuildConfigTest {
                 "parameters", "-encoding UTF-8 -d build/classes"));
 
         assertEquals("--release 21 -encoding UTF-8 -d build/classes", summary);
+    }
+
+    @Test
+    void hasSourcesWhenSectionPresent() {
+        assertTrue(BuildConfig.hasSources(Map.of("sources", Map.of("paths", "src"))));
+        assertFalse(BuildConfig.hasSources(Map.of("javac", Map.of("path", ".jdk"))));
     }
 }
