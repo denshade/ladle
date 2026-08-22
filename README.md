@@ -261,7 +261,7 @@ Build order:
 
 ### Dependencies (`dependency` command)
 
-The `dependency` command downloads a missing project JDK (when configured) and JARs listed in the INI into `dependencies/`. It walks `[subproject]` entries first, so one invocation on an aggregator installs each subproject's dependencies:
+The `dependency` command downloads a missing project JDK (when configured) and JARs listed in the INI into `dependencies/`. JAR files already present in `dependencies/` are left as-is. It walks `[subproject]` entries first, so one invocation on an aggregator installs each subproject's dependencies:
 
 ```sh
 ./bin/ladle dependency build.ini

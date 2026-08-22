@@ -32,11 +32,17 @@ public class DependencyInstaller {
             throw new IOException("Cannot create " + dependenciesDir.getPath());
         }
 
+        int downloaded = 0;
         for (var artifact : artifacts) {
             var target = new File(dependenciesDir, artifact.fileName());
+            if (target.isFile()) {
+                System.out.println("  " + artifact.fileName() + " (already present)");
+                continue;
+            }
             HttpFiles.download(artifact.url(), target);
             System.out.println("  " + artifact.fileName());
+            downloaded++;
         }
-        return artifacts.size();
+        return downloaded;
     }
 }

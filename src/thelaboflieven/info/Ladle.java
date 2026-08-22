@@ -132,8 +132,7 @@ public class Ladle {
         }
 
         if (!artifacts.isEmpty()) {
-            System.out.println("Downloading " + artifacts.size() + " dependency file(s) to dependencies/ from "
-                    + project.iniFile().getName() + ":");
+            System.out.println("Dependencies from " + project.iniFile().getName() + ":");
             installed = installer.install(project.projectDir());
         }
         return installed;
