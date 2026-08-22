@@ -241,7 +241,7 @@ This writes `build/myapp.jar` when you run `./bin/ladle release build.ini`.
 
 Subprojects are built recursively before the current project. Each entry uses `name = path`, where `path` is a directory containing a `build.ini`. The subproject is compiled, packaged as a JAR, and written to `dependencies/{name}.jar` for use when compiling the parent.
 
-A root INI can list subprojects and omit `[sources]` (and `[javac]`) when it has no sources of its own.
+A root INI can list subprojects and omit `[sources]` (and `[javac]`) when it has no sources of its own. The same applies to `ladle test` and `ladle dependency`: they walk `[subproject]` entries first. Omit `[test]` on an aggregator; tests run in each subproject that has a `[test]` section.
 
 Example:
 
@@ -257,9 +257,11 @@ Build order:
 2. Publish each subproject JAR to `dependencies/{name}.jar`.
 3. Compile the current project with those JARs on the classpath, or skip `javac` when `[sources]` is omitted.
 
+`ladle test` uses the same tree: it runs tests in each subproject that defines `[test]`, then in the current project if it has `[test]`. A leaf without `[test]` is skipped.
+
 ### Dependencies (`dependency` command)
 
-The `dependency` command downloads a missing project JDK (when configured) and JARs listed in the INI into `dependencies/`:
+The `dependency` command downloads a missing project JDK (when configured) and JARs listed in the INI into `dependencies/`. It walks `[subproject]` entries first, so one invocation on an aggregator installs each subproject's dependencies:
 
 ```sh
 ./bin/ladle dependency build.ini
@@ -327,11 +329,11 @@ This runs (conceptually):
 javac -cp dependencies/auto-service-annotations-1.1.1.jar -processorpath dependencies/auto-service-1.1.1.jar -processor com.google.auto.service.processor.AutoServiceProcessor …
 ```
 
-If `[dependencies]`, `[compileonlydependencies]`, `[testdependencies]`, and `[annotationprocessor]` are all empty and `[javac]` has no JDK to install, `ladle dependency` prints a warning and exits successfully.
+If `[dependencies]`, `[compileonlydependencies]`, `[testdependencies]`, and `[annotationprocessor]` are all empty, `[javac]` has no JDK to install, and there are no `[subproject]` entries, `ladle dependency` prints a warning and exits successfully.
 
 ### Tests (`test` command)
 
-The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5 (default) or JUnit 4. It requires a `[test]` section. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
+The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5 (default) or JUnit 4. It requires a `[test]` section, except when this INI only lists `[subproject]` entries. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
 
 #### `[test]`
 
@@ -444,8 +446,8 @@ Workflow:
 | `--help` | — | Print brief usage (exits with status 1). |
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
 | `release` | `<ini-file>` | Compile sources, copy resources, and package a JAR (requires `[jar]`). |
-| `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file. |
-| `test` | `<ini-file>` | Compile and run unit tests described in the INI file. |
+| `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file and its `[subproject]` entries. |
+| `test` | `<ini-file>` | Compile and run unit tests described in the INI file and its `[subproject]` entries. |
 | `clear` | `<ini-file>` | Delete the build directory described in the INI file. |
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.

@@ -1,16 +1,19 @@
 package thelaboflieven.info;
 
-import thelaboflieven.info.build.BuildFailedException;
 import thelaboflieven.info.build.BuildCleaner;
+import thelaboflieven.info.build.BuildFailedException;
 import thelaboflieven.info.build.CompileOrchestrator;
 import thelaboflieven.info.build.JarPackager;
+import thelaboflieven.info.build.Subprojects;
 import thelaboflieven.info.download.DependencyInstaller;
 import thelaboflieven.info.download.JdkInstaller;
-import thelaboflieven.info.test.TestCommandBuilder;
-import thelaboflieven.info.test.TestPlan;
+import thelaboflieven.info.test.TestFailedException;
+import thelaboflieven.info.test.TestOrchestrator;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Ladle {
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -70,45 +73,83 @@ public class Ladle {
 
     private static void runDependency(String[] args) throws IOException {
         var buildIni = resolveIniFile("dependency", args);
-        var project = ProjectContext.load(buildIni.getAbsolutePath());
+        try {
+            var installed = installDependencies(
+                    ProjectContext.load(buildIni.getAbsolutePath()),
+                    new HashSet<>(),
+                    true);
+            if (installed > 0) {
+                System.out.println("Dependencies installed.");
+            }
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
+            System.exit(2);
+        }
+    }
 
+    private static int installDependencies(
+            ProjectContext project,
+            Set<String> visitedInChain,
+            boolean isRoot
+    ) throws IOException {
+        var canonicalPath = project.iniFile().getCanonicalPath();
+        if (!visitedInChain.add(canonicalPath)) {
+            throw new IllegalStateException("Circular subproject reference: " + project.iniFile().getPath());
+        }
+
+        try {
+            int installed = 0;
+            var subprojects = Subprojects.read(project.iniData());
+            for (var subproject : subprojects) {
+                System.out.println(
+                        "Installing dependencies for subproject " + subproject.name()
+                                + " (" + subproject.path() + ")");
+                installed += installDependencies(
+                        Subprojects.load(project.projectDir(), subproject),
+                        visitedInChain,
+                        false);
+            }
+            installed += installProjectDependencies(project, isRoot && subprojects.isEmpty());
+            return installed;
+        } finally {
+            visitedInChain.remove(canonicalPath);
+        }
+    }
+
+    private static int installProjectDependencies(ProjectContext project, boolean warnWhenEmpty) throws IOException {
         var installer = new DependencyInstaller(project);
         var artifacts = installer.artifacts();
         if (artifacts.isEmpty() && !JdkInstaller.isConfigured(project.iniData())) {
-            System.err.println("Warning: no dependencies configured in " + buildIni.getName() + ".");
-            return;
+            if (warnWhenEmpty) {
+                System.err.println("Warning: no dependencies configured in " + project.iniFile().getName() + ".");
+            }
+            return 0;
         }
 
+        int installed = 0;
         if (JdkInstaller.isConfigured(project.iniData())) {
             JdkInstaller.ensureInstalled(project.projectDir(), project.iniData());
         }
 
         if (!artifacts.isEmpty()) {
             System.out.println("Downloading " + artifacts.size() + " dependency file(s) to dependencies/ from "
-                    + buildIni.getName() + ":");
-            installer.install(project.projectDir());
-            System.out.println("Dependencies installed.");
+                    + project.iniFile().getName() + ":");
+            installed = installer.install(project.projectDir());
         }
+        return installed;
     }
 
     private static void runTest(String[] args) throws IOException, InterruptedException {
         var buildIni = resolveIniFile("test", args);
         try {
-            var project = ProjectContext.load(buildIni.getAbsolutePath());
-            var builder = new TestCommandBuilder(project);
-            var plan = builder.buildPlan();
-            if (plan.testClassCount() == 0) {
-                System.err.println("Warning: no test classes found in " + buildIni.getName() + ".");
+            var tested = new TestOrchestrator().test(buildIni);
+            if (tested == 0) {
                 return;
             }
-            printTestPlan(buildIni, plan);
-            var commandRunner = new CommandsRunner(buildIni.getParentFile());
-            var exitCode = commandRunner.run(plan.commands());
-            if (exitCode != 0) {
-                System.err.println("Tests failed with exit code " + exitCode + ".");
-                System.exit(exitCode);
-            }
             System.out.println("Tests successful.");
+        } catch (TestFailedException e) {
+            System.err.println(e.getMessage() + ".");
+            System.exit(e.exitCode());
         } catch (IllegalStateException e) {
             System.err.println(e.getMessage());
             System.exit(2);
@@ -124,24 +165,6 @@ public class Ladle {
             return;
         }
         System.out.println("Cleared " + cleaner.buildDirectory() + "/");
-    }
-
-    private static void printTestPlan(File buildIni, TestPlan plan) {
-        System.out.println("Testing from " + buildIni.getName());
-        System.out.println("Running " + plan.testClassCount() + " test class(es) with " + frameworkLabel(plan.runner()));
-        System.out.println("  java: " + plan.javaPath());
-        System.out.println("  classpath: " + plan.classpath());
-        System.out.println("  runner: " + plan.runner());
-        for (int i = 0; i < plan.commands().size(); i++) {
-            System.out.println("  command " + (i + 1) + ": " + CommandLine.format(plan.commands().get(i)));
-        }
-    }
-
-    private static String frameworkLabel(String runner) {
-        if (TestCommandBuilder.JUNIT4_RUNNER.equals(runner)) {
-            return "JUnit 4";
-        }
-        return "JUnit 5";
     }
 
     private static File resolveIniFile(String command, String[] args) {

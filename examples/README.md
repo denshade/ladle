@@ -50,6 +50,22 @@ Standalone release of the library:
 
 Expected: exit code 0, `examples/subprojects/lib/build/lib.jar` exists.
 
+Tests live on the library subproject. The aggregator INI has no `[test]` section; `ladle test` walks `[subproject]` and runs `lib`'s tests (`app` has none and is skipped).
+
+```powershell
+.\bin\ladle.ps1 dependency examples\subprojects\build.ini
+.\bin\ladle.ps1 build examples\subprojects\build.ini
+.\bin\ladle.ps1 test examples\subprojects\build.ini
+```
+
+```sh
+./bin/ladle dependency examples/subprojects/build.ini
+./bin/ladle build examples/subprojects/build.ini
+./bin/ladle test examples/subprojects/build.ini
+```
+
+Expected: exit code 0, `Tests successful.`
+
 ## Failing build
 
 Contains a Java compile error on purpose.
