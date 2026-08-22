@@ -19,6 +19,7 @@ thelaboflieven.info.Ladle supports:
 
 thelaboflieven.info.Ladle will optimize for transparency and speed.
 It will document clearly each and every used parameter.
+It is part of the philosophy that Ladle does not need other dependencies to run.
 
 ## Using Ladle
 
