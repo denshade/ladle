@@ -50,6 +50,18 @@ Standalone release of the library:
 
 Expected: exit code 0, `examples/subprojects/lib/build/lib.jar` exists.
 
+Standalone fat JAR of the app (unpacks `lib.jar` into the release):
+
+```powershell
+.\bin\ladle.ps1 release examples\subprojects\app\build.ini
+```
+
+```sh
+./bin/ladle release examples/subprojects/app/build.ini
+```
+
+Expected: exit code 0, `examples/subprojects/app/build/app.jar` exists and contains both `example/app/App.class` and `example/lib/Lib.class`. The printed `jar` command uses `-C build/fat-classes`.
+
 Tests live on the library subproject. The aggregator INI has no `[test]` section; `ladle test` walks `[subproject]` and runs `lib`'s tests (`app` has none and is skipped).
 
 ```powershell

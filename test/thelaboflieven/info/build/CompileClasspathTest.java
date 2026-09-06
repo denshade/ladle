@@ -31,6 +31,35 @@ public class CompileClasspathTest {
     }
 
     @Test
+    void runtimeJarPathsOmitCompileOnlyTestAndProcessorJars() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-classpath-runtime").toFile();
+        var dependenciesDir = new File(projectDir, "dependencies");
+        dependenciesDir.mkdirs();
+        new File(dependenciesDir, "lib.jar").createNewFile();
+        new File(dependenciesDir, "core.jar").createNewFile();
+        new File(dependenciesDir, "jspecify-1.0.jar").createNewFile();
+        new File(dependenciesDir, "junit.jar").createNewFile();
+        new File(dependenciesDir, "auto-service-1.1.1.jar").createNewFile();
+
+        var iniData = Map.of(
+                "subproject",
+                Map.of("core", "../core"),
+                "dependencies",
+                Map.of("lib.jar", "https://example.com/lib.jar"),
+                "compileonlydependencies",
+                Map.of("org.jspecify", "https://example.com/jspecify-1.0.jar"),
+                "testdependencies",
+                Map.of("junit.jar", "https://example.com/junit.jar"),
+                "annotationprocessor",
+                Map.of("auto-service", "https://example.com/auto-service-1.1.1.jar")
+        );
+
+        assertEquals(
+                java.util.List.of("dependencies/core.jar", "dependencies/lib.jar"),
+                CompileClasspath.runtimeJarPaths(projectDir, iniData));
+    }
+
+    @Test
     void includesCompileOnlyDependencies() throws Exception {
         var projectDir = Files.createTempDirectory("ladle-classpath-compileonly").toFile();
         var dependenciesDir = new File(projectDir, "dependencies");

@@ -205,8 +205,9 @@ Required for `ladle release`. Describes the JAR written after compilation and re
 | `directory` | no | `[build].directory` | Directory that receives the JAR (for example `build` or `lib`). |
 | `manifest` | no | — | Path to a `MANIFEST.MF` file relative to the project directory. When set, Ladle runs `jar cfm` instead of `jar cf`. |
 | `main-class` | no | — | Shorthand for a generated manifest with `Main-Class`. Ignored when `manifest` is set. |
-| `include` | no | all files | Comma-separated Ant-style globs of paths relative to the classes directory. When omitted, every file is packaged (`jar … -C {classes} .`). |
+| `include` | no | all files | Comma-separated Ant-style globs of paths relative to the classes directory (or `{build}/fat-classes` when `fat = true`). When omitted, every file is packaged (`jar … -C {classes} .`). |
 | `exclude` | no | — | Comma-separated Ant-style globs to omit after `include`. `*` does not cross `/`; `**` matches any depth. |
+| `fat` | no | `false` | When `true`, unpack `[subproject]` and `[dependencies]` JARs into `{build}/fat-classes` together with the project classes, then package that tree. `[compileonlydependencies]`, `[testdependencies]`, and `[annotationprocessor]` JARs are omitted. |
 | *other keys* | no | — | Additional manifest attributes when no `manifest` file is configured (for example `premain-class = org.example.Agent`). |
 
 Example:
@@ -226,7 +227,7 @@ name = ladle
 main-class = thelaboflieven.info.Ladle
 ```
 
-Filter packaged entries with `include` and `exclude`. Patterns are matched against the path inside the classes directory (`build/classes/org/example/Foo.class` is `org/example/Foo.class`). When either key is set, Ladle lists matching files on the `jar` command instead of `.`.
+Filter packaged entries with `include` and `exclude`. Patterns are matched against the path inside the classes directory (`build/classes/org/example/Foo.class` is `org/example/Foo.class`). When `fat = true`, they match the assembled tree instead (`build/fat-classes/...`). When either key is set, Ladle lists matching files on the `jar` command instead of `.`.
 
 ```ini
 [jar]
@@ -236,6 +237,25 @@ exclude = module-info.class, **/internal/**
 ```
 
 This writes `build/myapp.jar` when you run `./bin/ladle release build.ini`.
+
+Set `fat = true` to build an uber JAR that can run without a separate `dependencies/` directory. Ladle unpacks each `[subproject]` JAR (as `dependencies/{name}.jar`) and each `[dependencies]` JAR into `{build}/fat-classes`, copies the project classes on top, then runs `jar` on that directory.
+
+```ini
+[jar]
+name = myapp
+main-class = example.App
+fat = true
+```
+
+That runs (conceptually):
+
+```
+# unpack dependencies/lib.jar and dependencies/guava-*.jar into build/fat-classes
+# copy build/classes into build/fat-classes (project files overwrite unpacked files)
+jar cfm build/myapp.jar build/MANIFEST.MF -C build/fat-classes .
+```
+
+`META-INF/services/*` files from runtime JARs and the project are concatenated. Dependency `META-INF/MANIFEST.MF` files, `META-INF/INDEX.LIST`, and signature files (`*.SF`, `*.DSA`, `*.RSA`, `*.EC`) are skipped so the project's manifest is the one packaged. Compile-only, test, and annotation-processor JARs stay out of the fat JAR.
 
 #### `[subproject]`
 
@@ -447,7 +467,7 @@ Workflow:
 | *(none)* | — | Print welcome message. |
 | `--help` | — | Print brief usage (exits with status 1). |
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
-| `release` | `<ini-file>` | Compile sources, copy resources, and package a JAR (requires `[jar]`). |
+| `release` | `<ini-file>` | Compile sources, copy resources, and package a JAR (requires `[jar]`). Set `[jar].fat = true` to unpack runtime JARs into the same archive. |
 | `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file and its `[subproject]` entries. |
 | `test` | `<ini-file>` `[<class-or-file>...]` | Compile and run unit tests described in the INI file and its `[subproject]` entries. Extra arguments limit the run to matching `*Test` classes. |
 | `clear` | `<ini-file>` | Delete the build directory described in the INI file. |

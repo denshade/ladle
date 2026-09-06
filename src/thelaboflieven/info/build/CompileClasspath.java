@@ -14,10 +14,16 @@ public final class CompileClasspath {
 
     public static String resolve(File projectDir, Map<String, Map<String, String>> iniData) {
         var entries = new ArrayList<String>();
-        entries.addAll(subprojectEntries(projectDir, iniData));
-        entries.addAll(dependencyEntries(projectDir, Dependencies.implementationPaths(iniData)));
+        entries.addAll(runtimeJarPaths(projectDir, iniData));
         entries.addAll(dependencyEntries(projectDir, Dependencies.compileOnlyPaths(iniData)));
         return String.join(String.valueOf(File.pathSeparatorChar), entries);
+    }
+
+    public static List<String> runtimeJarPaths(File projectDir, Map<String, Map<String, String>> iniData) {
+        var entries = new ArrayList<String>();
+        entries.addAll(subprojectEntries(projectDir, iniData));
+        entries.addAll(dependencyEntries(projectDir, Dependencies.implementationPaths(iniData)));
+        return entries;
     }
 
     public static String resolveProcessorPath(File projectDir, Map<String, Map<String, String>> iniData) {

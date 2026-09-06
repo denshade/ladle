@@ -28,6 +28,12 @@ public class JarPackager {
         outputJar.getParentFile().mkdirs();
         var jarPlan = jarBuilder.planFor(outputJar);
         var runner = new CommandsRunner(project.projectDir());
+        if (jarPlan.fat()) {
+            System.out.println("  fat: unpacking " + jarPlan.unpackedJars().size() + " runtime jar(s)");
+            for (var unpackedJar : jarPlan.unpackedJars()) {
+                System.out.println("    " + unpackedJar);
+            }
+        }
         System.out.println("  jar: " + CommandLine.format(jarPlan.command()));
         var exitCode = runner.run(List.of(jarPlan.command()));
         if (exitCode != 0) {

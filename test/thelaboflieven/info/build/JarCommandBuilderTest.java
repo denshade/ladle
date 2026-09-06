@@ -8,6 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JarCommandBuilderTest {
     @Test
@@ -263,6 +264,161 @@ public class JarCommandBuilderTest {
     }
 
     @Test
+    void planForAssemblesFatJarFromRuntimeDependencies() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-jar-fat").toFile();
+        var classesDir = new File(projectDir, "build/classes/example");
+        classesDir.mkdirs();
+        Files.writeString(new File(classesDir, "App.class").toPath(), "app");
+        var dependenciesDir = new File(projectDir, "dependencies");
+        dependenciesDir.mkdirs();
+        writeJar(new File(dependenciesDir, "lib.jar"), "example/Lib.class", "lib");
+        createFakeJdk(projectDir);
+
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+                parameters = -d build/classes
+
+                [sources]
+                paths = src
+
+                [dependencies]
+                lib.jar = https://example.com/lib.jar
+
+                [jar]
+                name = example
+                main-class = example.App
+                fat = true
+                """);
+
+        var builder = new JarCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath());
+        var outputJar = new File(projectDir, "build/example.jar");
+        var plan = builder.planFor(outputJar);
+
+        assertTrue(plan.fat());
+        assertEquals(List.of("dependencies/lib.jar"), plan.unpackedJars());
+        assertEquals(
+                List.of(
+                        new File(projectDir, ".jdk/bin/" + BuildConfig.toolFileName("jar")).getPath(),
+                        "cfm",
+                        outputJar.getAbsolutePath(),
+                        "build/MANIFEST.MF",
+                        "-C",
+                        "build/fat-classes",
+                        "."),
+                plan.command());
+        assertEquals("app", Files.readString(new File(projectDir, "build/fat-classes/example/App.class").toPath()));
+        assertEquals("lib", Files.readString(new File(projectDir, "build/fat-classes/example/Lib.class").toPath()));
+        assertEquals("Main-Class: example.App\n", Files.readString(new File(projectDir, "build/MANIFEST.MF").toPath()));
+    }
+
+    @Test
+    void planForAppliesIncludeExcludeToFatJarTree() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-jar-fat-filter").toFile();
+        var classesDir = new File(projectDir, "build/classes/example");
+        classesDir.mkdirs();
+        Files.writeString(new File(classesDir, "App.class").toPath(), "app");
+        var dependenciesDir = new File(projectDir, "dependencies");
+        dependenciesDir.mkdirs();
+        writeJar(
+                new File(dependenciesDir, "lib.jar"),
+                "example/Keep.class",
+                "keep",
+                "example/Drop.class",
+                "drop");
+        createFakeJdk(projectDir);
+
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+                parameters = -d build/classes
+
+                [sources]
+                paths = src
+
+                [dependencies]
+                lib.jar = https://example.com/lib.jar
+
+                [jar]
+                name = example
+                fat = true
+                include = **/*.class
+                exclude = example/Drop.class
+                """);
+
+        var plan = new JarCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath())
+                .planFor(new File(projectDir, "build/example.jar"));
+
+        assertEquals(
+                List.of(
+                        new File(projectDir, ".jdk/bin/" + BuildConfig.toolFileName("jar")).getPath(),
+                        "cf",
+                        new File(projectDir, "build/example.jar").getAbsolutePath(),
+                        "-C",
+                        "build/fat-classes",
+                        "example/App.class",
+                        "example/Keep.class"),
+                plan.command());
+    }
+
+    @Test
+    void planForOmitsFatFromGeneratedManifest() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-jar-fat-manifest").toFile();
+        new File(projectDir, "build/classes").mkdirs();
+        createFakeJdk(projectDir);
+
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+                parameters = -d build/classes
+
+                [sources]
+                paths = src
+
+                [jar]
+                name = example
+                main-class = example.Main
+                fat = true
+                implementation-title = Example
+                """);
+
+        var plan = new JarCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath())
+                .planFor(new File(projectDir, "build/example.jar"));
+
+        assertTrue(plan.fat());
+        assertEquals(
+                "Main-Class: example.Main\n\nImplementation-Title: Example\n",
+                Files.readString(new File(projectDir, "build/MANIFEST.MF").toPath()));
+    }
+
+    @Test
+    void planForRejectsInvalidFatValue() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-jar-fat-invalid").toFile();
+        new File(projectDir, "build/classes").mkdirs();
+        createFakeJdk(projectDir);
+
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+                parameters = -d build/classes
+
+                [sources]
+                paths = src
+
+                [jar]
+                name = example
+                fat = yes
+                """);
+
+        var iniPath = new File(projectDir, "build.ini").getAbsolutePath();
+        var outputJar = new File(projectDir, "build/example.jar");
+        var error = assertThrows(
+                IllegalStateException.class,
+                () -> new JarCommandBuilder(iniPath).planFor(outputJar));
+        assertEquals("Invalid [jar].fat value: yes (use true or false).", error.getMessage());
+    }
+
+    @Test
     void releaseOutputJarRequiresJarSection() throws Exception {
         var projectDir = Files.createTempDirectory("ladle-jar-missing").toFile();
         writeIni(projectDir, """
@@ -298,5 +454,15 @@ public class JarCommandBuilderTest {
         binDir.mkdirs();
         new File(binDir, BuildConfig.toolFileName("javac")).createNewFile();
         new File(binDir, BuildConfig.toolFileName("jar")).createNewFile();
+    }
+
+    private static void writeJar(File jarFile, String... pathAndContents) throws Exception {
+        try (var zip = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(jarFile))) {
+            for (int i = 0; i < pathAndContents.length; i += 2) {
+                zip.putNextEntry(new java.util.zip.ZipEntry(pathAndContents[i]));
+                zip.write(pathAndContents[i + 1].getBytes());
+                zip.closeEntry();
+            }
+        }
     }
 }

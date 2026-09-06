@@ -15,7 +15,7 @@ import java.util.Set;
 
 public class JarCommandBuilder {
     private static final Set<String> RESERVED_JAR_KEYS = Set.of(
-            "name", "directory", "manifest", "main-class", "include", "exclude");
+            "name", "directory", "manifest", "main-class", "include", "exclude", "fat");
 
     private final ProjectContext project;
 
@@ -35,10 +35,20 @@ public class JarCommandBuilder {
             throw new IllegalStateException("Missing compiled classes directory: " + classesPath.getPath());
         }
 
+        var jarSection = project.iniData().get("jar");
+        var fat = isFat(jarSection);
+        var packageDir = classesDir;
+        var packagePath = classesPath;
+        var unpackedJars = List.<String>of();
+        if (fat) {
+            packageDir = FatJarAssembler.stagingDirectory(project);
+            packagePath = new File(project.projectDir(), packageDir);
+            unpackedJars = FatJarAssembler.assemble(project, classesPath, packagePath);
+        }
+
         var outputPath = outputJar.getAbsolutePath();
         var manifestFile = resolveManifestFile();
-        var jarSection = project.iniData().get("jar");
-        var entries = selectEntries(classesPath, PathGlobs.fromJarSection(jarSection));
+        var entries = selectEntries(packagePath, PathGlobs.fromJarSection(jarSection));
 
         var jarArguments = new ArrayList<String>();
         if (manifestFile == null) {
@@ -51,7 +61,7 @@ public class JarCommandBuilder {
             jarArguments.add(ProjectPaths.relativeTo(project.projectDir(), manifestFile));
         }
         jarArguments.add("-C");
-        jarArguments.add(classesDir);
+        jarArguments.add(packageDir);
         jarArguments.addAll(entries);
 
         var command = CommandLine.javacCommand(
@@ -59,7 +69,24 @@ public class JarCommandBuilder {
                 jarArguments,
                 project.projectDir(),
                 BuildConfig.buildDirectory(project.iniData()) + "/jar.args");
-        return new JarPlan(command, outputPath, classesPath.getPath());
+        return new JarPlan(command, outputPath, packagePath.getPath(), fat, unpackedJars);
+    }
+
+    static boolean isFat(Map<String, String> jarSection) {
+        if (jarSection == null) {
+            return false;
+        }
+        var value = jarSection.getOrDefault("fat", "").trim();
+        if (value.isBlank()) {
+            return false;
+        }
+        if (value.equalsIgnoreCase("true")) {
+            return true;
+        }
+        if (value.equalsIgnoreCase("false")) {
+            return false;
+        }
+        throw new IllegalStateException("Invalid [jar].fat value: " + value + " (use true or false).");
     }
 
     private List<String> selectEntries(File classesPath, PathGlobs globs) throws IOException {
