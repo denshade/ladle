@@ -78,16 +78,7 @@ public final class Dependencies {
         if (name.endsWith(".jar")) {
             return name;
         }
-        var withoutQuery = url;
-        var queryIndex = withoutQuery.indexOf('?');
-        if (queryIndex >= 0) {
-            withoutQuery = withoutQuery.substring(0, queryIndex);
-        }
-        var lastSlash = withoutQuery.lastIndexOf('/');
-        if (lastSlash < 0 || lastSlash == withoutQuery.length() - 1) {
-            throw new IllegalStateException("Invalid dependency URL for " + name + ": " + url);
-        }
-        return withoutQuery.substring(lastSlash + 1);
+        return fileNameFromUrl(url);
     }
 
     public static String fileNameFromUrl(String url) {

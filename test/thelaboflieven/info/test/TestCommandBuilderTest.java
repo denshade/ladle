@@ -248,6 +248,52 @@ public class TestCommandBuilderTest {
     }
 
     @Test
+    void filtersToASingleTestClass() throws Exception {
+        var projectDir = newProject("ladle-test-filter");
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+        writeJava(projectDir, "test/example/OtherTest.java", """
+                package example;
+                public class OtherTest {}
+                """);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+
+                [test]
+                sources = test
+                """);
+
+        var project = thelaboflieven.info.ProjectContext.load(
+                new File(projectDir, "build.ini").getAbsolutePath());
+        var plan = new TestCommandBuilder(project, List.of("example.AppTest")).buildPlan();
+        var testCompile = plan.commands().get(0);
+        var testRun = plan.commands().get(1);
+
+        assertEquals(1, plan.testClassCount());
+        assertTrue(containsPath(testCompile, "test/example/AppTest.java"));
+        assertFalse(containsPath(testCompile, "test/example/OtherTest.java"));
+        assertTrue(testRun.contains("example.AppTest"));
+        assertFalse(testRun.contains("example.OtherTest"));
+    }
+
+    @Test
+    void matchesFilterByFileNameAndPath() {
+        var projectDir = new File("proj");
+        var javaFile = new File(projectDir, "test/example/AppTest.java").toPath();
+        assertTrue(TestCommandBuilder.matchesClassFilter(
+                projectDir, "example.AppTest", javaFile, "AppTest"));
+        assertTrue(TestCommandBuilder.matchesClassFilter(
+                projectDir, "example.AppTest", javaFile, "AppTest.java"));
+        assertTrue(TestCommandBuilder.matchesClassFilter(
+                projectDir, "example.AppTest", javaFile, "test/example/AppTest.java"));
+        assertFalse(TestCommandBuilder.matchesClassFilter(
+                projectDir, "example.AppTest", javaFile, "OtherTest"));
+    }
+
+    @Test
     void rejectsUnknownTestRunner() throws Exception {
         var projectDir = newProject("ladle-test-unknown-runner");
         writeJava(projectDir, "test/example/AppTest.java", """

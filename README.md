@@ -335,6 +335,8 @@ If `[dependencies]`, `[compileonlydependencies]`, `[testdependencies]`, and `[an
 
 The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5 (default) or JUnit 4. It requires a `[test]` section, except when this INI only lists `[subproject]` entries. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
 
+Optional arguments after the INI file select which tests to run: a fully qualified class name (`example.AppTest`), a simple class name (`AppTest`), or a `*Test.java` file path. Ladle compiles and runs only the matching classes. With no extra arguments, every `*Test.java` class is run.
+
 #### `[test]`
 
 | Key | Required | Default | Description |
@@ -447,7 +449,7 @@ Workflow:
 | `build` | `<ini-file>` | Compile Java sources described in the INI file. |
 | `release` | `<ini-file>` | Compile sources, copy resources, and package a JAR (requires `[jar]`). |
 | `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file and its `[subproject]` entries. |
-| `test` | `<ini-file>` | Compile and run unit tests described in the INI file and its `[subproject]` entries. |
+| `test` | `<ini-file>` `[<class-or-file>...]` | Compile and run unit tests described in the INI file and its `[subproject]` entries. Extra arguments limit the run to matching `*Test` classes. |
 | `clear` | `<ini-file>` | Delete the build directory described in the INI file. |
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.

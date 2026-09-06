@@ -93,6 +93,67 @@ public class TestOrchestratorTest {
         assertTrue(commands.get(1).contains("example.LibTest"));
     }
 
+    @Test
+    void filtersToMatchingTestClass() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-test-one-class").toFile();
+        writeJdkTools(projectDir);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+
+                [test]
+                sources = test
+                classpath = build/classes
+                output = build/test-classes
+                """);
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+        writeJava(projectDir, "test/example/OtherTest.java", """
+                package example;
+                public class OtherTest {}
+                """);
+
+        var commands = new ArrayList<List<String>>();
+        var tested = new TestOrchestrator(dir -> new CommandsRunner(dir) {
+            @Override
+            public int run(List<List<String>> projectCommands) {
+                commands.addAll(projectCommands);
+                return 0;
+            }
+        }).test(new File(projectDir, "build.ini"), List.of("example.AppTest"));
+
+        assertEquals(1, tested);
+        assertEquals(2, commands.size());
+        assertTrue(commands.get(0).stream().anyMatch(argument -> argument.endsWith("AppTest.java")));
+        assertTrue(commands.get(0).stream().noneMatch(argument -> argument.endsWith("OtherTest.java")));
+        assertTrue(commands.get(1).contains("example.AppTest"));
+        assertTrue(commands.get(1).stream().noneMatch("example.OtherTest"::equals));
+    }
+
+    @Test
+    void failsWhenFilterMatchesNothing() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-test-no-match").toFile();
+        writeJdkTools(projectDir);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+
+                [test]
+                sources = test
+                """);
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+
+        var thrown = assertThrows(
+                IllegalStateException.class,
+                () -> new TestOrchestrator().test(new File(projectDir, "build.ini"), List.of("MissingTest")));
+        assertEquals("No test class matching: MissingTest", thrown.getMessage());
+    }
+
     private static void writeJdkTools(File projectDir) throws Exception {
         var binDir = new File(projectDir, ".jdk/bin");
         binDir.mkdirs();

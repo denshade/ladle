@@ -12,7 +12,10 @@ import thelaboflieven.info.test.TestOrchestrator;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 public class Ladle {
@@ -139,9 +142,9 @@ public class Ladle {
     }
 
     private static void runTest(String[] args) throws IOException, InterruptedException {
-        var buildIni = resolveIniFile("test", args);
+        var invocation = resolveTestInvocation(args);
         try {
-            var tested = new TestOrchestrator().test(buildIni);
+            var tested = new TestOrchestrator().test(invocation.iniFile(), invocation.classFilters());
             if (tested == 0) {
                 return;
             }
@@ -174,17 +177,46 @@ public class Ladle {
         }
 
         String iniPath = args.length == 2 ? args[1] : ProjectContext.DEFAULT_INI_FILE;
+        return readableIni(command, args, iniPath, "Usage: ladle " + command + " [<ini-file>]");
+    }
+
+    private static TestInvocation resolveTestInvocation(String[] args) {
+        String usage = "Usage: ladle test [<ini-file>] [<test-class-or-file>...]";
+        String iniPath = ProjectContext.DEFAULT_INI_FILE;
+        int filterStart = 1;
+        if (args.length > 1 && looksLikeIni(args[1])) {
+            iniPath = args[1];
+            filterStart = 2;
+        }
+        var filters = new ArrayList<String>();
+        for (int i = filterStart; i < args.length; i++) {
+            if (args[i] != null && !args[i].isBlank()) {
+                filters.add(args[i]);
+            }
+        }
+        return new TestInvocation(readableIni("test", args, iniPath, usage), List.copyOf(filters));
+    }
+
+    static boolean looksLikeIni(String argument) {
+        return argument != null && argument.toLowerCase(Locale.ROOT).endsWith(".ini");
+    }
+
+    private static File readableIni(String command, String[] args, String iniPath, String usage) {
         var buildIni = new File(iniPath);
         if (!buildIni.canRead()) {
-            if (args.length == 1) {
+            if (args.length == 1
+                    || ("test".equals(command) && !looksLikeIni(args.length > 1 ? args[1] : null))) {
                 System.err.println("Cannot read " + ProjectContext.DEFAULT_INI_FILE + " in the current directory.");
             } else {
                 System.err.println("Cannot read " + iniPath);
             }
-            System.err.println("Usage: ladle " + command + " [<ini-file>]");
+            System.err.println(usage);
             System.exit(2);
         }
         return buildIni;
+    }
+
+    private record TestInvocation(File iniFile, List<String> classFilters) {
     }
 
     private static void printWelcome() {
@@ -199,7 +231,7 @@ public class Ladle {
         System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
         System.out.println("  ladle release [<ini-file>]     Compile and package a JAR (default: build.ini)");
         System.out.println("  ladle dependency [<ini-file>] Download JDK and dependencies (default: build.ini)");
-        System.out.println("  ladle test [<ini-file>]        Run unit tests (default: build.ini)");
+        System.out.println("  ladle test [<ini-file>] [<class>...]  Run unit tests (default: build.ini)");
         System.out.println("  ladle clear [<ini-file>]       Delete the build directory (default: build.ini)");
         System.out.println("  ladle --help                   Show this help message");
     }

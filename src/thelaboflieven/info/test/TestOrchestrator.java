@@ -9,6 +9,7 @@ import thelaboflieven.info.build.Subprojects;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -24,13 +25,22 @@ public class TestOrchestrator {
     }
 
     public int test(File iniFile) throws IOException, InterruptedException {
-        return test(ProjectContext.load(iniFile.getAbsolutePath()), new HashSet<>(), true);
+        return test(iniFile, List.of());
+    }
+
+    public int test(File iniFile, List<String> classFilters) throws IOException, InterruptedException {
+        return test(
+                ProjectContext.load(iniFile.getAbsolutePath()),
+                new HashSet<>(),
+                true,
+                classFilters == null ? List.of() : classFilters);
     }
 
     private int test(
             ProjectContext project,
             Set<String> visitedInChain,
-            boolean isRoot
+            boolean isRoot,
+            List<String> classFilters
     ) throws IOException, InterruptedException {
         var canonicalPath = project.iniFile().getCanonicalPath();
         if (!visitedInChain.add(canonicalPath)) {
@@ -41,11 +51,11 @@ public class TestOrchestrator {
             int testClassCount = 0;
             var subprojects = Subprojects.read(project.iniData());
             for (var subproject : subprojects) {
-                testClassCount += testSubproject(project.projectDir(), subproject, visitedInChain);
+                testClassCount += testSubproject(project.projectDir(), subproject, visitedInChain, classFilters);
             }
 
             if (project.iniData().get("test") != null) {
-                testClassCount += runProjectTests(project);
+                testClassCount += runProjectTests(project, classFilters);
             } else if (subprojects.isEmpty()) {
                 if (isRoot) {
                     throw new IllegalStateException(
@@ -56,6 +66,9 @@ public class TestOrchestrator {
                 System.out.println(
                         "No [test] in " + project.iniFile().getName() + "; testing subprojects only.");
             }
+            if (isRoot && testClassCount == 0 && !classFilters.isEmpty()) {
+                throw new IllegalStateException("No test class matching: " + String.join(", ", classFilters));
+            }
             return testClassCount;
         } finally {
             visitedInChain.remove(canonicalPath);
@@ -65,16 +78,20 @@ public class TestOrchestrator {
     private int testSubproject(
             File projectDir,
             Subproject subproject,
-            Set<String> visitedInChain
+            Set<String> visitedInChain,
+            List<String> classFilters
     ) throws IOException, InterruptedException {
         System.out.println("Testing subproject " + subproject.name() + " (" + subproject.path() + ")");
-        return test(Subprojects.load(projectDir, subproject), visitedInChain, false);
+        return test(Subprojects.load(projectDir, subproject), visitedInChain, false, classFilters);
     }
 
-    private int runProjectTests(ProjectContext project) throws IOException, InterruptedException {
-        var plan = new TestCommandBuilder(project).buildPlan();
+    private int runProjectTests(ProjectContext project, List<String> classFilters)
+            throws IOException, InterruptedException {
+        var plan = new TestCommandBuilder(project, classFilters).buildPlan();
         if (plan.testClassCount() == 0) {
-            System.err.println("Warning: no test classes found in " + project.iniFile().getName() + ".");
+            if (classFilters.isEmpty()) {
+                System.err.println("Warning: no test classes found in " + project.iniFile().getName() + ".");
+            }
             return 0;
         }
         printTestPlan(project.iniFile(), plan);

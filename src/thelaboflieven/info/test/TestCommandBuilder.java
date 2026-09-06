@@ -23,13 +23,19 @@ public class TestCommandBuilder {
     private static final String DEFAULT_CLASSPATH = "build/classes";
 
     private final ProjectContext project;
+    private final List<String> classFilters;
 
     public TestCommandBuilder(String iniFilePath) throws IOException {
         this(ProjectContext.load(iniFilePath));
     }
 
     public TestCommandBuilder(ProjectContext project) {
+        this(project, List.of());
+    }
+
+    public TestCommandBuilder(ProjectContext project, List<String> classFilters) {
         this.project = project;
+        this.classFilters = classFilters == null ? List.of() : List.copyOf(classFilters);
     }
 
     public TestPlan buildPlan() throws IOException {
@@ -80,6 +86,23 @@ public class TestCommandBuilder {
                 testSourceFiles.add(javaFile);
                 testClassNames.add(toClassName(rootPath, javaFile));
             }
+        }
+
+        if (!classFilters.isEmpty()) {
+            var filteredSources = new ArrayList<Path>();
+            var filteredNames = new ArrayList<String>();
+            for (int i = 0; i < testClassNames.size(); i++) {
+                Path sourceFile = testSourceFiles.get(i);
+                String className = testClassNames.get(i);
+                if (matchesAnyFilter(className, sourceFile)) {
+                    filteredSources.add(sourceFile);
+                    filteredNames.add(className);
+                }
+            }
+            testSourceFiles.clear();
+            testSourceFiles.addAll(filteredSources);
+            testClassNames.clear();
+            testClassNames.addAll(filteredNames);
         }
 
         if (testClassNames.isEmpty()) {
@@ -273,6 +296,52 @@ public class TestCommandBuilder {
             }
         }
         return entries;
+    }
+
+    private boolean matchesAnyFilter(String className, Path javaFile) {
+        for (String filter : classFilters) {
+            if (matchesClassFilter(project.projectDir(), className, javaFile, filter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean matchesClassFilter(File projectDir, String className, Path javaFile, String filter) {
+        if (filter == null || filter.isBlank() || className == null) {
+            return false;
+        }
+        String trimmed = filter.trim();
+        if (trimmed.equals(className)) {
+            return true;
+        }
+        int lastDot = className.lastIndexOf('.');
+        String simpleName = lastDot < 0 ? className : className.substring(lastDot + 1);
+        if (trimmed.equals(simpleName)) {
+            return true;
+        }
+        if (javaFile == null) {
+            return false;
+        }
+        Path file = javaFile.toAbsolutePath().normalize();
+        String fileName = file.getFileName().toString();
+        if (trimmed.equals(fileName)) {
+            return true;
+        }
+        String unixFile = file.toString().replace('\\', '/');
+        String unixFilter = trimmed.replace('\\', '/');
+        if (unixFile.equals(unixFilter) || unixFile.endsWith("/" + unixFilter)) {
+            return true;
+        }
+        try {
+            Path filterPath = Path.of(trimmed);
+            if (!filterPath.isAbsolute() && projectDir != null) {
+                filterPath = projectDir.toPath().resolve(filterPath);
+            }
+            return file.equals(filterPath.toAbsolutePath().normalize());
+        } catch (java.nio.file.InvalidPathException ex) {
+            return false;
+        }
     }
 
     private String toClassName(Path sourceRoot, Path javaFile) {
