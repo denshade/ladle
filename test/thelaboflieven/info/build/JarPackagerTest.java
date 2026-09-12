@@ -51,7 +51,7 @@ public class JarPackagerTest {
                 """.formatted(jdkRoot().replace('\\', '/')));
 
         var project = ProjectContext.load(new File(projectDir, "build.ini").getAbsolutePath());
-        new JarPackager().packageRelease(project);
+        new JarCommandBuilder(project).packageRelease();
 
         var outputJar = new File(projectDir, "build/app.jar");
         try (var zip = new ZipFile(outputJar)) {

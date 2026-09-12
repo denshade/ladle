@@ -1,11 +1,11 @@
 package thelaboflieven.info.test;
 
+import thelaboflieven.info.CommandFailedException;
 import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.CommandsRunner;
 import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.build.BuildConfig;
 import thelaboflieven.info.build.CompileOrchestrator;
-import thelaboflieven.info.build.Subproject;
 import thelaboflieven.info.build.Subprojects;
 import thelaboflieven.info.download.DependencyOrchestrator;
 
@@ -18,32 +18,15 @@ import java.util.function.Function;
 
 public class TestOrchestrator {
     private final Function<File, CommandsRunner> runnerFactory;
-    private final CompileOrchestrator compileOrchestrator;
-    private final DependencyOrchestrator dependencyOrchestrator;
+    private final CompileOrchestrator compileOrchestrator = new CompileOrchestrator();
+    private final DependencyOrchestrator dependencyOrchestrator = new DependencyOrchestrator();
 
     public TestOrchestrator() {
-        this(CommandsRunner::new, new CompileOrchestrator(), new DependencyOrchestrator());
+        this(CommandsRunner::new);
     }
 
     TestOrchestrator(Function<File, CommandsRunner> runnerFactory) {
-        this(runnerFactory, new CompileOrchestrator(), new DependencyOrchestrator());
-    }
-
-    TestOrchestrator(
-            Function<File, CommandsRunner> runnerFactory,
-            CompileOrchestrator compileOrchestrator
-    ) {
-        this(runnerFactory, compileOrchestrator, new DependencyOrchestrator());
-    }
-
-    TestOrchestrator(
-            Function<File, CommandsRunner> runnerFactory,
-            CompileOrchestrator compileOrchestrator,
-            DependencyOrchestrator dependencyOrchestrator
-    ) {
         this.runnerFactory = runnerFactory;
-        this.compileOrchestrator = compileOrchestrator;
-        this.dependencyOrchestrator = dependencyOrchestrator;
     }
 
     public int test(File iniFile) throws IOException, InterruptedException {
@@ -64,14 +47,9 @@ public class TestOrchestrator {
             boolean isRoot,
             List<String> classFilters
     ) throws IOException, InterruptedException {
-        var canonicalPath = project.iniFile().getCanonicalPath();
-        if (!visitedInChain.add(canonicalPath)) {
-            throw new IllegalStateException("Circular subproject reference: " + project.iniFile().getPath());
-        }
-
-        try {
+        return Subprojects.withCycleGuard(project, visitedInChain, () -> {
+            var subprojects = Subprojects.read(project.iniData());
             if (isRoot) {
-                var subprojects = Subprojects.read(project.iniData());
                 if (project.iniData().get("test") == null && subprojects.isEmpty()) {
                     throw new IllegalStateException(
                             "Missing [test] section in INI file. Omit it only when [subproject] is present.");
@@ -84,18 +62,18 @@ public class TestOrchestrator {
             }
 
             int testClassCount = 0;
-            var subprojects = Subprojects.read(project.iniData());
             for (var subproject : subprojects) {
-                testClassCount += testSubproject(project.projectDir(), subproject, visitedInChain, classFilters);
+                System.out.println("Testing subproject " + subproject.name() + " (" + subproject.path() + ")");
+                testClassCount += test(
+                        Subprojects.load(project.projectDir(), subproject),
+                        visitedInChain,
+                        false,
+                        classFilters);
             }
 
             if (project.iniData().get("test") != null) {
                 testClassCount += runProjectTests(project, classFilters);
             } else if (subprojects.isEmpty()) {
-                if (isRoot) {
-                    throw new IllegalStateException(
-                            "Missing [test] section in INI file. Omit it only when [subproject] is present.");
-                }
                 System.out.println("No [test] in " + project.iniFile().getName() + "; skipping.");
             } else {
                 System.out.println(
@@ -105,19 +83,7 @@ public class TestOrchestrator {
                 throw new IllegalStateException("No test class matching: " + String.join(", ", classFilters));
             }
             return testClassCount;
-        } finally {
-            visitedInChain.remove(canonicalPath);
-        }
-    }
-
-    private int testSubproject(
-            File projectDir,
-            Subproject subproject,
-            Set<String> visitedInChain,
-            List<String> classFilters
-    ) throws IOException, InterruptedException {
-        System.out.println("Testing subproject " + subproject.name() + " (" + subproject.path() + ")");
-        return test(Subprojects.load(projectDir, subproject), visitedInChain, false, classFilters);
+        });
     }
 
     private int runProjectTests(ProjectContext project, List<String> classFilters)
@@ -132,7 +98,7 @@ public class TestOrchestrator {
         printTestPlan(project.iniFile(), plan);
         var exitCode = runnerFactory.apply(project.projectDir()).run(plan.commands());
         if (exitCode != 0) {
-            throw new TestFailedException(exitCode);
+            throw CommandFailedException.test(exitCode);
         }
         return plan.testClassCount();
     }

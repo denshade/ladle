@@ -30,9 +30,9 @@ public class ResourceCopierTest {
                 paths = src/main/resources
                 """);
 
-        var plan = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
+        var copied = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
 
-        assertEquals(1, plan.fileCount());
+        assertEquals(1, copied);
         assertTrue(new File(projectDir, "build/classes/com/example/config.properties").isFile());
         assertTrue(!new File(projectDir, "build/classes/com/example/Ignored.java").exists());
     }
@@ -56,9 +56,9 @@ public class ResourceCopierTest {
                 build/generated/inject-MockMethodDispatcher.raw = inject-MockMethodDispatcher.raw
                 """);
 
-        var plan = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
+        var copied = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
 
-        assertEquals(1, plan.fileCount());
+        assertEquals(1, copied);
         assertTrue(new File(projectDir, "build/classes/inject-MockMethodDispatcher.raw").isFile());
     }
 
@@ -78,9 +78,9 @@ public class ResourceCopierTest {
                 paths = does/not/exist
                 """);
 
-        var plan = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
+        var copied = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
 
-        assertEquals(0, plan.fileCount());
+        assertEquals(0, copied);
     }
 
     @Test
@@ -116,9 +116,9 @@ public class ResourceCopierTest {
                 paths = src
                 """);
 
-        var plan = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
+        var copied = new ResourceCopier(new File(projectDir, "build.ini").getAbsolutePath()).copyResources();
 
-        assertEquals(0, plan.fileCount());
+        assertEquals(0, copied);
     }
 
     private static void writeIni(File projectDir, String contents) throws Exception {

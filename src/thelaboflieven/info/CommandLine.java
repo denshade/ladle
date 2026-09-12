@@ -46,7 +46,7 @@ public final class CommandLine {
         return argv.stream().map(CommandLine::quote).collect(Collectors.joining(" "));
     }
 
-    public static List<String> javacCommand(
+    public static List<String> withOptionalArgfile(
             String executable,
             List<String> arguments,
             File projectDir,

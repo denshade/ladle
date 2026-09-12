@@ -1,6 +1,7 @@
 package thelaboflieven.info;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 public class CommandsRunner {
@@ -21,35 +22,10 @@ public class CommandsRunner {
     }
 
     public int runCommand(List<String> command) throws IOException, InterruptedException {
-        var process = new ProcessBuilder(command).directory(currentWorkingDir).start();
-        StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream());
-        StreamGobbler outputGobbler = new StreamGobbler(process.getInputStream());
-        errorGobbler.start();
-        outputGobbler.start();
-        int exitCode = process.waitFor();
-        errorGobbler.join();
-        outputGobbler.join();
-        return exitCode;
-    }
-
-    class StreamGobbler extends Thread {
-        InputStream is;
-
-        StreamGobbler(InputStream is) {
-            this.is = is;
-        }
-
-        public void run() {
-            try {
-                InputStreamReader isr = new InputStreamReader(is);
-                BufferedReader br = new BufferedReader(isr);
-                String line = null;
-                while ((line = br.readLine()) != null) {
-                    System.out.println(line);
-                }
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-        }
+        return new ProcessBuilder(command)
+                .directory(currentWorkingDir)
+                .inheritIO()
+                .start()
+                .waitFor();
     }
 }

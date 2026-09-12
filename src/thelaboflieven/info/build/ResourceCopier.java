@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.ProjectPaths;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,10 +20,10 @@ public class ResourceCopier {
         this.project = project;
     }
 
-    public ResourceCopyPlan copyResources() throws IOException {
+    public int copyResources() throws IOException {
         Map<String, String> resourcesSection = project.iniData().get("resources");
         if (resourcesSection == null || resourcesSection.isEmpty()) {
-            return new ResourceCopyPlan(0);
+            return 0;
         }
 
         var classesDir = new File(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
@@ -31,8 +32,8 @@ public class ResourceCopier {
         var copiedCount = 0;
         var paths = resourcesSection.get("paths");
         if (paths != null && !paths.isBlank()) {
-            for (var pathEntry : paths.split(",")) {
-                var sourceRoot = new File(project.projectDir(), pathEntry.trim());
+            for (var pathEntry : ProjectPaths.commaSeparated(paths)) {
+                var sourceRoot = new File(project.projectDir(), pathEntry);
                 if (!sourceRoot.isDirectory()) {
                     continue;
                 }
@@ -52,7 +53,7 @@ public class ResourceCopier {
             copiedCount += copyEntry(source.toPath(), destination.toPath());
         }
 
-        return new ResourceCopyPlan(copiedCount);
+        return copiedCount;
     }
 
     private int copyTree(Path sourceRoot, Path classesDir, Path current) throws IOException {

@@ -1,6 +1,8 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.CommandFailedException;
 import thelaboflieven.info.CommandLine;
+import thelaboflieven.info.CommandsRunner;
 import thelaboflieven.info.ProjectContext;
 import thelaboflieven.info.ProjectPaths;
 
@@ -64,12 +66,38 @@ public class JarCommandBuilder {
         jarArguments.add(packageDir);
         jarArguments.addAll(entries);
 
-        var command = CommandLine.javacCommand(
+        var command = CommandLine.withOptionalArgfile(
                 jarTool.getPath(),
                 jarArguments,
                 project.projectDir(),
                 BuildConfig.buildDirectory(project.iniData()) + "/jar.args");
         return new JarPlan(command, outputPath, packagePath.getPath(), fat, unpackedJars);
+    }
+
+    public void packageRelease() throws IOException, InterruptedException {
+        var outputJar = releaseOutputJar();
+        System.out.println("Packaging " + outputJar.getName() + "...");
+        packageTo(outputJar);
+    }
+
+    public void packageTo(File outputJar) throws IOException, InterruptedException {
+        outputJar.getParentFile().mkdirs();
+        var jarPlan = planFor(outputJar);
+        if (jarPlan.fat()) {
+            System.out.println("  fat: unpacking " + jarPlan.unpackedJars().size() + " runtime jar(s)");
+            for (var unpackedJar : jarPlan.unpackedJars()) {
+                System.out.println("    " + unpackedJar);
+            }
+        }
+        System.out.println("  jar: " + CommandLine.format(jarPlan.command()));
+        var exitCode = new CommandsRunner(project.projectDir()).runCommand(jarPlan.command());
+        if (exitCode != 0) {
+            throw CommandFailedException.build(exitCode);
+        }
+        if (!outputJar.canRead()) {
+            throw new IllegalStateException("Failed to create " + outputJar.getPath());
+        }
+        System.out.println("Created " + outputJar.getPath());
     }
 
     static boolean isFat(Map<String, String> jarSection) {

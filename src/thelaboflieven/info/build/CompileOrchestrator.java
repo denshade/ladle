@@ -1,32 +1,18 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.CommandFailedException;
 import thelaboflieven.info.CommandsRunner;
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.download.DependencyOrchestrator;
-import thelaboflieven.info.download.DependencyPaths;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class CompileOrchestrator {
-    private final JarPackager jarPackager;
-    private final DependencyOrchestrator dependencyOrchestrator;
-
-    public CompileOrchestrator() {
-        this(new JarPackager(), new DependencyOrchestrator());
-    }
-
-    CompileOrchestrator(JarPackager jarPackager) {
-        this(jarPackager, new DependencyOrchestrator());
-    }
-
-    CompileOrchestrator(JarPackager jarPackager, DependencyOrchestrator dependencyOrchestrator) {
-        this.jarPackager = jarPackager;
-        this.dependencyOrchestrator = dependencyOrchestrator;
-    }
+    private final DependencyOrchestrator dependencyOrchestrator = new DependencyOrchestrator();
 
     public void compile(File iniFile) throws IOException, InterruptedException {
         compile(ProjectContext.load(iniFile.getAbsolutePath()), new HashSet<>(), null);
@@ -39,22 +25,21 @@ public class CompileOrchestrator {
     private void compile(
             ProjectContext project,
             Set<String> visitedInChain,
-            SubprojectPublish publish
+            File publishJar
     ) throws IOException, InterruptedException {
-        var canonicalPath = project.iniFile().getCanonicalPath();
-        if (!visitedInChain.add(canonicalPath)) {
-            throw new IllegalStateException("Circular subproject reference: " + project.iniFile().getPath());
-        }
-
-        try {
-            new File(project.projectDir(), DependencyPaths.DIRECTORY).mkdirs();
+        Subprojects.withCycleGuard(project, visitedInChain, () -> {
+            new File(project.projectDir(), Dependencies.DIRECTORY).mkdirs();
             var subprojects = Subprojects.read(project.iniData());
             for (var subproject : subprojects) {
-                compileSubproject(project.projectDir(), subproject, visitedInChain);
+                System.out.println("Building subproject " + subproject.name() + " (" + subproject.path() + ")");
+                compile(
+                        Subprojects.load(project.projectDir(), subproject),
+                        visitedInChain,
+                        new File(project.projectDir(), Dependencies.filePath(subproject.name() + ".jar")));
             }
 
             var hasSources = BuildConfig.hasSources(project.iniData());
-            if (!hasSources && subprojects.isEmpty() && publish == null) {
+            if (!hasSources && subprojects.isEmpty() && publishJar == null) {
                 throw new IllegalStateException(
                         "Missing [sources] section in INI file. Omit it only when [subproject] is present.");
             }
@@ -63,10 +48,9 @@ public class CompileOrchestrator {
             if (hasSources) {
                 var plan = new JavacCommandBuilder(project).buildPlan();
                 printBuildPlan(project.iniFile(), plan);
-                var runner = new CommandsRunner(project.projectDir());
-                var exitCode = runner.run(List.of(plan.command()));
+                var exitCode = new CommandsRunner(project.projectDir()).runCommand(plan.command());
                 if (exitCode != 0) {
-                    throw new BuildFailedException(exitCode);
+                    throw CommandFailedException.build(exitCode);
                 }
             } else if (subprojects.isEmpty()) {
                 System.out.println("No [sources] in " + project.iniFile().getName() + "; skipping compile.");
@@ -75,40 +59,24 @@ public class CompileOrchestrator {
                         "No [sources] in " + project.iniFile().getName() + "; compiling subprojects only.");
             }
 
-            var resourcePlan = new ResourceCopier(project).copyResources();
-            if (resourcePlan.fileCount() > 0) {
-                printResourceCopyPlan(resourcePlan);
+            var copied = new ResourceCopier(project).copyResources();
+            if (copied > 0) {
+                System.out.println("Copying " + copied + " resource file(s) into classes directory...");
             }
 
             var classesDir = new File(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
             if (classesDir.isDirectory()) {
+                var jarBuilder = new JarCommandBuilder(project);
                 if (BuildConfig.hasJar(project.iniData())) {
-                    jarPackager.packageRelease(project);
+                    jarBuilder.packageRelease();
                 }
-                if (publish != null) {
-                    jarPackager.packageJar(
-                            project,
-                            new File(publish.directory(), publish.name() + ".jar"));
+                if (publishJar != null) {
+                    jarBuilder.packageTo(publishJar);
                 }
             }
 
             System.out.println("Build successful.");
-        } finally {
-            visitedInChain.remove(canonicalPath);
-        }
-    }
-
-    private void compileSubproject(
-            File projectDir,
-            Subproject subproject,
-            Set<String> visitedInChain
-    ) throws IOException, InterruptedException {
-        System.out.println("Building subproject " + subproject.name() + " (" + subproject.path() + ")");
-        var publishDir = new File(projectDir, DependencyPaths.DIRECTORY);
-        compile(
-                Subprojects.load(projectDir, subproject),
-                visitedInChain,
-                new SubprojectPublish(publishDir, subproject.name()));
+        });
     }
 
     private void printBuildPlan(File buildIni, BuildPlan plan) {
@@ -125,12 +93,5 @@ public class CompileOrchestrator {
             System.out.println("  processorpath: " + plan.processorPath());
         }
         System.out.println("Running javac...");
-    }
-
-    private void printResourceCopyPlan(ResourceCopyPlan plan) {
-        System.out.println("Copying " + plan.fileCount() + " resource file(s) into classes directory...");
-    }
-
-    private record SubprojectPublish(File directory, String name) {
     }
 }

@@ -1,7 +1,7 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.ProjectContext;
-import thelaboflieven.info.download.ArchiveExtractor;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,7 +32,7 @@ public final class FatJarAssembler {
                     "Fat JAR staging directory cannot be the classes directory: " + stagingDir.getPath());
         }
 
-        ArchiveExtractor.deleteRecursively(stagingDir);
+        ProjectPaths.deleteRecursively(stagingDir);
         if (!stagingDir.mkdirs() && !stagingDir.isDirectory()) {
             throw new IOException("Cannot create " + stagingDir.getPath());
         }

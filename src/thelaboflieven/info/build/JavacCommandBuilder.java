@@ -1,18 +1,15 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.download.JdkInstaller;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class JavacCommandBuilder {
     private final ProjectContext project;
@@ -66,25 +63,21 @@ public class JavacCommandBuilder {
         javacArguments.addAll(versionFlags);
         javacArguments.addAll(CommandLine.splitParameters(parameters));
 
-        var sourceFileCount = 0;
-        for (String source : sources.split(",")) {
-            var sourceRoot = new File(project.projectDir(), source.trim());
-            List<Path> javaFiles = Files.walk(sourceRoot.toPath())
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".java"))
-                    .collect(Collectors.toList());
-            for (var javaFile : javaFiles) {
-                javacArguments.add(javaFile.toAbsolutePath().toString());
-                sourceFileCount++;
-            }
-        }
-        if (sourceFileCount == 0) {
+        var sourceFiles = ProjectPaths.collect(
+                project.projectDir(),
+                sources,
+                ".java",
+                "Source path does not exist: ");
+        if (sourceFiles.isEmpty()) {
             throw new IllegalStateException("No .java files found in [sources].paths.");
+        }
+        for (var sourceFile : sourceFiles) {
+            javacArguments.add(sourceFile.file().toAbsolutePath().toString());
         }
 
         var javacExecutable = BuildConfig.javacExecutable(project.projectDir(), project.iniData());
         var buildDirectory = BuildConfig.buildDirectory(project.iniData());
-        var command = CommandLine.javacCommand(
+        var command = CommandLine.withOptionalArgfile(
                 javacExecutable.getPath(),
                 javacArguments,
                 project.projectDir(),
@@ -92,7 +85,7 @@ public class JavacCommandBuilder {
 
         return new BuildPlan(
                 command,
-                sourceFileCount,
+                sourceFiles.size(),
                 javacExecutable.getPath(),
                 BuildConfig.javacParameterSummary(javacSection),
                 classpath,

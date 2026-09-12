@@ -1,5 +1,6 @@
 package thelaboflieven.info.download;
 
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.build.BuildConfig;
 
 import java.io.BufferedInputStream;
@@ -7,12 +8,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
@@ -88,7 +85,7 @@ public final class ArchiveExtractor {
             throw new IOException("Not a directory: " + source.getPath());
         }
         if (target.exists()) {
-            deleteRecursively(target);
+            ProjectPaths.deleteRecursively(target);
         }
         if (!target.mkdirs()) {
             throw new IOException("Cannot create " + target.getPath());
@@ -101,28 +98,6 @@ public final class ArchiveExtractor {
         for (var entry : entries) {
             Files.move(entry.toPath(), new File(target, entry.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
-    }
-
-    public static void deleteRecursively(File file) throws IOException {
-        if (!file.exists()) {
-            return;
-        }
-        Files.walkFileTree(
-                file.toPath(),
-                new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
-                        Files.delete(path);
-                        return FileVisitResult.CONTINUE;
-                    }
-
-                    @Override
-                    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                        Files.delete(dir);
-                        return FileVisitResult.CONTINUE;
-                    }
-                }
-        );
     }
 
     static void extractZip(File archive, File destination) throws IOException {

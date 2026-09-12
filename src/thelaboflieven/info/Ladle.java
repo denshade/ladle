@@ -1,10 +1,8 @@
 package thelaboflieven.info;
 
-import thelaboflieven.info.build.BuildCleaner;
-import thelaboflieven.info.build.BuildFailedException;
+import thelaboflieven.info.build.BuildConfig;
 import thelaboflieven.info.build.CompileOrchestrator;
 import thelaboflieven.info.download.DependencyOrchestrator;
-import thelaboflieven.info.test.TestFailedException;
 import thelaboflieven.info.test.TestOrchestrator;
 
 import java.io.File;
@@ -42,58 +40,47 @@ public class Ladle {
 
     private static void runBuild(String[] args) throws IOException, InterruptedException {
         var buildIni = resolveIniFile("build", args);
-        try {
-            new CompileOrchestrator().compile(buildIni);
-        } catch (BuildFailedException e) {
-            System.err.println(e.getMessage() + ".");
-            System.exit(e.exitCode());
-        } catch (IllegalStateException e) {
-            System.err.println(e.getMessage());
-            System.exit(2);
-        }
+        runCommand(() -> new CompileOrchestrator().compile(buildIni));
     }
 
     private static void runRelease(String[] args) throws IOException, InterruptedException {
         var buildIni = resolveIniFile("release", args);
-        try {
+        runCommand(() -> {
             var project = ProjectContext.load(buildIni.getAbsolutePath());
             if (project.iniData().get("jar") == null) {
                 throw new IllegalStateException("Missing [jar] section in INI file.");
             }
             new CompileOrchestrator().compile(project);
             System.out.println("Release successful.");
-        } catch (BuildFailedException e) {
-            System.err.println(e.getMessage() + ".");
-            System.exit(e.exitCode());
-        } catch (IllegalStateException e) {
-            System.err.println(e.getMessage());
-            System.exit(2);
-        }
+        });
     }
 
-    private static void runDependency(String[] args) throws IOException {
+    private static void runDependency(String[] args) throws IOException, InterruptedException {
         var buildIni = resolveIniFile("dependency", args);
-        try {
+        runCommand(() -> {
             var installed = new DependencyOrchestrator().install(
                     ProjectContext.load(buildIni.getAbsolutePath()));
             if (installed > 0) {
                 System.out.println("Dependencies installed.");
             }
-        } catch (IllegalStateException e) {
-            System.err.println(e.getMessage());
-            System.exit(2);
-        }
+        });
     }
 
     private static void runTest(String[] args) throws IOException, InterruptedException {
         var invocation = resolveTestInvocation(args);
-        try {
+        runCommand(() -> {
             var tested = new TestOrchestrator().test(invocation.iniFile(), invocation.classFilters());
             if (tested == 0) {
                 return;
             }
             System.out.println("Tests successful.");
-        } catch (TestFailedException e) {
+        });
+    }
+
+    private static void runCommand(CommandAction action) throws IOException, InterruptedException {
+        try {
+            action.run();
+        } catch (CommandFailedException e) {
             System.err.println(e.getMessage() + ".");
             System.exit(e.exitCode());
         } catch (IllegalStateException e) {
@@ -102,15 +89,22 @@ public class Ladle {
         }
     }
 
+    @FunctionalInterface
+    private interface CommandAction {
+        void run() throws IOException, InterruptedException;
+    }
+
     private static void runClear(String[] args) throws IOException {
         var buildIni = resolveIniFile("clear", args);
-        var cleaner = new BuildCleaner(buildIni.getAbsolutePath());
-        var cleared = cleaner.clear(buildIni.getParentFile());
-        if (!cleared) {
-            System.err.println("Warning: build directory '" + cleaner.buildDirectory() + "' does not exist.");
+        var project = ProjectContext.load(buildIni.getAbsolutePath());
+        var buildDirectory = BuildConfig.buildDirectory(project.iniData());
+        var buildDir = new File(buildIni.getParentFile(), buildDirectory);
+        if (!buildDir.exists()) {
+            System.err.println("Warning: build directory '" + buildDirectory + "' does not exist.");
             return;
         }
-        System.out.println("Cleared " + cleaner.buildDirectory() + "/");
+        ProjectPaths.deleteRecursively(buildDir);
+        System.out.println("Cleared " + buildDirectory + "/");
     }
 
     private static File resolveIniFile(String command, String[] args) {

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class Dependencies {
+    public static final String DIRECTORY = "dependencies";
     public static final String IMPLEMENTATION = "dependencies";
     public static final String COMPILE_ONLY = "compileonlydependencies";
     public static final String TEST = "testdependencies";
@@ -62,8 +63,8 @@ public final class Dependencies {
         return paths;
     }
 
-    public static List<DependencyArtifact> artifacts(Map<String, Map<String, String>> iniData) {
-        var artifacts = new ArrayList<DependencyArtifact>();
+    public static List<Artifact> artifacts(Map<String, Map<String, String>> iniData) {
+        var artifacts = new ArrayList<Artifact>();
         addArtifacts(artifacts, iniData.get(IMPLEMENTATION));
         addArtifacts(artifacts, iniData.get(COMPILE_ONLY));
         addArtifacts(artifacts, iniData.get(TEST));
@@ -94,11 +95,18 @@ public final class Dependencies {
         return withoutQuery.substring(lastSlash + 1);
     }
 
-    public static String localPath(String name, String url) {
-        return DependencyPaths.localPath(fileName(name, url));
+    public static String filePath(String fileName) {
+        return DIRECTORY + "/" + fileName;
     }
 
-    private static void addArtifacts(List<DependencyArtifact> artifacts, Map<String, String> section) {
+    public static String localPath(String name, String url) {
+        return filePath(fileName(name, url));
+    }
+
+    public record Artifact(String url, String fileName) {
+    }
+
+    private static void addArtifacts(List<Artifact> artifacts, Map<String, String> section) {
         if (section == null) {
             return;
         }
@@ -109,7 +117,7 @@ public final class Dependencies {
             if (name.isBlank() || url.isBlank()) {
                 continue;
             }
-            artifacts.add(new DependencyArtifact(url, fileName(name, url)));
+            artifacts.add(new Artifact(url, fileName(name, url)));
         }
     }
 

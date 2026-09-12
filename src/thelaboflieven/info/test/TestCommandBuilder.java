@@ -1,6 +1,7 @@
 package thelaboflieven.info.test;
 
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.build.BuildConfig;
 import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.download.Dependencies;
@@ -8,12 +9,10 @@ import thelaboflieven.info.download.JdkInstaller;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class TestCommandBuilder {
     public static final String JUNIT5_RUNNER = "org.junit.platform.console.ConsoleLauncher";
@@ -71,21 +70,13 @@ public class TestCommandBuilder {
         var runtimeClasspath = joinClasspath(runtimeClasspathEntries, output);
         var testClassNames = new ArrayList<String>();
         var testSourceFiles = new ArrayList<Path>();
-
-        for (String sourceRoot : sources.split(",")) {
-            var root = new File(project.projectDir(), sourceRoot.trim());
-            if (!root.isDirectory()) {
-                throw new IllegalStateException("Test source path does not exist: " + root.getPath());
-            }
-            var rootPath = root.toPath().toAbsolutePath().normalize();
-            List<Path> javaFiles = Files.walk(rootPath)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith("Test.java"))
-                    .collect(Collectors.toList());
-            for (var javaFile : javaFiles) {
-                testSourceFiles.add(javaFile);
-                testClassNames.add(toClassName(rootPath, javaFile));
-            }
+        for (var sourceFile : ProjectPaths.collect(
+                project.projectDir(),
+                sources,
+                "Test.java",
+                "Test source path does not exist: ")) {
+            testSourceFiles.add(sourceFile.file());
+            testClassNames.add(toClassName(sourceFile.root(), sourceFile.file()));
         }
 
         if (!classFilters.isEmpty()) {
@@ -156,7 +147,7 @@ public class TestCommandBuilder {
                 arguments.add(testClassName);
             }
         }
-        return CommandLine.javacCommand(
+        return CommandLine.withOptionalArgfile(
                 javaExecutable.getPath(),
                 arguments,
                 project.projectDir(),
@@ -177,28 +168,19 @@ public class TestCommandBuilder {
         String classpath = fixtureSection.getOrDefault("classpath", DEFAULT_CLASSPATH);
         String output = fixtureSection.getOrDefault("output", DEFAULT_FIXTURE_OUTPUT);
         var compileClasspathEntries = resolveCompileClasspathEntries(resolveRuntimeClasspathEntries(classpath));
-        var sourceFiles = collectJavaFiles(sources, ".java", "Test fixture source path does not exist: ");
-        if (sourceFiles.isEmpty()) {
+        var locatedSources = ProjectPaths.collect(
+                project.projectDir(),
+                sources,
+                ".java",
+                "Test fixture source path does not exist: ");
+        if (locatedSources.isEmpty()) {
             throw new IllegalStateException("No .java files found in [testfixtures].sources.");
         }
-        return new FixtureCompile(output, compileClasspathEntries, sourceFiles);
-    }
-
-    private List<Path> collectJavaFiles(String sources, String fileSuffix, String missingPathMessage) throws IOException {
         var sourceFiles = new ArrayList<Path>();
-        for (String sourceRoot : sources.split(",")) {
-            var root = new File(project.projectDir(), sourceRoot.trim());
-            if (!root.isDirectory()) {
-                throw new IllegalStateException(missingPathMessage + root.getPath());
-            }
-            var rootPath = root.toPath().toAbsolutePath().normalize();
-            List<Path> javaFiles = Files.walk(rootPath)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(fileSuffix))
-                    .collect(Collectors.toList());
-            sourceFiles.addAll(javaFiles);
+        for (var located : locatedSources) {
+            sourceFiles.add(located.file());
         }
-        return sourceFiles;
+        return new FixtureCompile(output, compileClasspathEntries, sourceFiles);
     }
 
     private List<String> javacCompileCommand(
@@ -222,7 +204,7 @@ public class TestCommandBuilder {
         for (var sourceFile : sourceFiles) {
             compileArguments.add(sourceFile.toAbsolutePath().toString());
         }
-        return CommandLine.javacCommand(
+        return CommandLine.withOptionalArgfile(
                 javacExecutable.getPath(),
                 compileArguments,
                 project.projectDir(),
@@ -256,7 +238,7 @@ public class TestCommandBuilder {
     }
 
     private List<String> resolveRuntimeClasspathEntries(String classpath) {
-        return addDependencyPaths(splitEntries(classpath), project.iniData().get(Dependencies.TEST));
+        return addDependencyPaths(ProjectPaths.commaSeparated(classpath), project.iniData().get(Dependencies.TEST));
     }
 
     private List<String> resolveCompileClasspathEntries(List<String> runtimeEntries) {
@@ -285,17 +267,6 @@ public class TestCommandBuilder {
         var runtimeEntries = new ArrayList<>(entries);
         runtimeEntries.add(output);
         return joinClasspath(runtimeEntries);
-    }
-
-    private List<String> splitEntries(String value) {
-        var entries = new ArrayList<String>();
-        for (String entry : value.split(",")) {
-            entry = entry.trim();
-            if (!entry.isBlank()) {
-                entries.add(entry);
-            }
-        }
-        return entries;
     }
 
     private boolean matchesAnyFilter(String className, Path javaFile) {

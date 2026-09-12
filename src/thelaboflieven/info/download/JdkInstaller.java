@@ -1,7 +1,7 @@
 package thelaboflieven.info.download;
 
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.build.BuildConfig;
-import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.inifile.IniEnvironment;
 
 import java.io.File;
@@ -53,7 +53,7 @@ public final class JdkInstaller {
 
     public static void install(File projectDir, File jdkRoot, String downloadUrl) throws IOException {
         var stagingDir = new File(projectDir, STAGING_DIR);
-        ArchiveExtractor.deleteRecursively(stagingDir);
+        ProjectPaths.deleteRecursively(stagingDir);
         if (!stagingDir.mkdirs()) {
             throw new IOException("Cannot create " + stagingDir.getPath());
         }
@@ -70,22 +70,13 @@ public final class JdkInstaller {
         ArchiveExtractor.extract(archive, extractedDir);
 
         var discoveredRoot = ArchiveExtractor.findJdkRoot(extractedDir);
-        ArchiveExtractor.deleteRecursively(jdkRoot);
+        ProjectPaths.deleteRecursively(jdkRoot);
         if (!jdkRoot.mkdirs()) {
             throw new IOException("Cannot create " + jdkRoot.getPath());
         }
         ArchiveExtractor.moveDirectoryContents(discoveredRoot, jdkRoot);
-        ArchiveExtractor.deleteRecursively(stagingDir);
+        ProjectPaths.deleteRecursively(stagingDir);
         System.out.println("JDK installed.");
-    }
-
-    private static boolean hasDownloadUrl(Map<String, String> javacSection) {
-        for (var entry : javacSection.entrySet()) {
-            if (entry.getKey().startsWith("download.") && !entry.getValue().isBlank()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static String downloadUrl(Map<String, String> javacSection) {

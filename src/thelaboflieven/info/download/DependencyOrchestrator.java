@@ -6,14 +6,15 @@ import thelaboflieven.info.build.Subprojects;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class DependencyOrchestrator {
-    public int install(File iniFile) throws IOException {
+    public int install(File iniFile) throws IOException, InterruptedException {
         return install(ProjectContext.load(iniFile.getAbsolutePath()));
     }
 
-    public int install(ProjectContext project) throws IOException {
+    public int install(ProjectContext project) throws IOException, InterruptedException {
         return install(project, new HashSet<>(), true);
     }
 
@@ -25,13 +26,8 @@ public class DependencyOrchestrator {
             ProjectContext project,
             Set<String> visitedInChain,
             boolean isRoot
-    ) throws IOException {
-        var canonicalPath = project.iniFile().getCanonicalPath();
-        if (!visitedInChain.add(canonicalPath)) {
-            throw new IllegalStateException("Circular subproject reference: " + project.iniFile().getPath());
-        }
-
-        try {
+    ) throws IOException, InterruptedException {
+        return Subprojects.withCycleGuard(project, visitedInChain, () -> {
             int installed = 0;
             var subprojects = Subprojects.read(project.iniData());
             for (var subproject : subprojects) {
@@ -45,14 +41,11 @@ public class DependencyOrchestrator {
             }
             installed += installProject(project, isRoot && subprojects.isEmpty());
             return installed;
-        } finally {
-            visitedInChain.remove(canonicalPath);
-        }
+        });
     }
 
     private int installProject(ProjectContext project, boolean warnWhenEmpty) throws IOException {
-        var installer = new DependencyInstaller(project);
-        var artifacts = installer.artifacts();
+        var artifacts = Dependencies.artifacts(project.iniData());
         if (artifacts.isEmpty() && !JdkInstaller.isConfigured(project.iniData())) {
             if (warnWhenEmpty) {
                 System.err.println("Warning: no dependencies configured in " + project.iniFile().getName() + ".");
@@ -64,11 +57,30 @@ public class DependencyOrchestrator {
         if (JdkInstaller.isConfigured(project.iniData())) {
             JdkInstaller.ensureInstalled(project.projectDir(), project.iniData());
         }
-
         if (!artifacts.isEmpty()) {
             System.out.println("Dependencies from " + project.iniFile().getName() + ":");
-            installed = installer.install(project.projectDir());
+            installed = installJars(project.projectDir(), artifacts);
         }
         return installed;
+    }
+
+    private int installJars(File projectDir, List<Dependencies.Artifact> artifacts) throws IOException {
+        var dependenciesDir = new File(projectDir, Dependencies.DIRECTORY);
+        if (!dependenciesDir.exists() && !dependenciesDir.mkdirs()) {
+            throw new IOException("Cannot create " + dependenciesDir.getPath());
+        }
+
+        int downloaded = 0;
+        for (var artifact : artifacts) {
+            var target = new File(dependenciesDir, artifact.fileName());
+            if (target.isFile()) {
+                System.out.println("  " + artifact.fileName() + " (already present)");
+                continue;
+            }
+            HttpFiles.download(artifact.url(), target);
+            System.out.println("  " + artifact.fileName());
+            downloaded++;
+        }
+        return downloaded;
     }
 }

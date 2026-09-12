@@ -26,7 +26,7 @@ public class CommandLineTest {
     }
 
     @Test
-    void javacCommandUsesArgfileWhenCommandLineIsTooLong() throws Exception {
+    void withOptionalArgfileUsesArgfileWhenCommandLineIsTooLong() throws Exception {
         var projectDir = Files.createTempDirectory("ladle-argfile").toFile();
         var arguments = new java.util.ArrayList<String>();
         arguments.add("-cp");
@@ -35,7 +35,7 @@ public class CommandLineTest {
             arguments.add(new File(projectDir, "src/File" + i + ".java").getAbsolutePath());
         }
 
-        var command = CommandLine.javacCommand(
+        var command = CommandLine.withOptionalArgfile(
                 "C:\\Program Files\\Java\\jdk-26\\bin\\javac.exe",
                 arguments,
                 projectDir,
@@ -48,11 +48,11 @@ public class CommandLineTest {
     }
 
     @Test
-    void javacCommandKeepsInlineArgumentsWhenShortEnough() throws Exception {
+    void withOptionalArgfileKeepsInlineArgumentsWhenShortEnough() throws Exception {
         var projectDir = Files.createTempDirectory("ladle-inline").toFile();
         var arguments = List.of("-d", "build/classes", new File(projectDir, "src/Main.java").getAbsolutePath());
 
-        var command = CommandLine.javacCommand(
+        var command = CommandLine.withOptionalArgfile(
                 "javac",
                 arguments,
                 projectDir,

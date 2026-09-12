@@ -1,7 +1,6 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.download.Dependencies;
-import thelaboflieven.info.download.DependencyPaths;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,23 +32,10 @@ public final class CompileClasspath {
     }
 
     private static List<String> subprojectEntries(File projectDir, Map<String, Map<String, String>> iniData) {
-        Map<String, String> subprojects = iniData.get("subproject");
-        if (subprojects == null) {
-            return List.of();
-        }
-
         var entries = new ArrayList<String>();
-        for (String name : subprojects.keySet()) {
-            name = name.trim();
-            if (name.isBlank()) {
-                continue;
-            }
-            var relativePath = DependencyPaths.localPath(name + ".jar");
-            var jarFile = new File(projectDir, relativePath);
-            if (!jarFile.canRead()) {
-                throw new IllegalStateException("Missing subproject jar: " + jarFile.getPath());
-            }
-            entries.add(relativePath);
+        for (var subproject : Subprojects.read(iniData)) {
+            var relativePath = Dependencies.filePath(subproject.name() + ".jar");
+            entries.add(requireReadable(projectDir, relativePath, "Missing subproject jar: "));
         }
         return entries;
     }
@@ -57,12 +43,16 @@ public final class CompileClasspath {
     private static List<String> dependencyEntries(File projectDir, List<String> relativePaths) {
         var entries = new ArrayList<String>();
         for (var relativePath : relativePaths) {
-            var jarFile = new File(projectDir, relativePath);
-            if (!jarFile.canRead()) {
-                throw new IllegalStateException("Missing dependency jar: " + jarFile.getPath());
-            }
-            entries.add(relativePath);
+            entries.add(requireReadable(projectDir, relativePath, "Missing dependency jar: "));
         }
         return entries;
+    }
+
+    private static String requireReadable(File projectDir, String relativePath, String missingPrefix) {
+        var jarFile = new File(projectDir, relativePath);
+        if (!jarFile.canRead()) {
+            throw new IllegalStateException(missingPrefix + jarFile.getPath());
+        }
+        return relativePath;
     }
 }
