@@ -134,7 +134,7 @@ public class JarCommandBuilderTest {
         builder.planFor(new File(projectDir, "build/example.jar"));
 
         var generatedManifest = new File(projectDir, "build/MANIFEST.MF");
-        assertEquals("Main-Class: example.Main\n", Files.readString(generatedManifest.toPath()));
+        assertEquals("Manifest-Version: 1.0\nMain-Class: example.Main\n", Files.readString(generatedManifest.toPath()));
     }
 
     @Test
@@ -232,7 +232,7 @@ public class JarCommandBuilderTest {
                 .planFor(new File(projectDir, "build/example.jar"));
 
         assertEquals(
-                "Main-Class: example.Main\n\nImplementation-Title: Example\n",
+                "Manifest-Version: 1.0\nMain-Class: example.Main\n\nImplementation-Title: Example\n",
                 Files.readString(new File(projectDir, "build/MANIFEST.MF").toPath()));
     }
 
@@ -309,7 +309,9 @@ public class JarCommandBuilderTest {
                 plan.command());
         assertEquals("app", Files.readString(new File(projectDir, "build/fat-classes/example/App.class").toPath()));
         assertEquals("lib", Files.readString(new File(projectDir, "build/fat-classes/example/Lib.class").toPath()));
-        assertEquals("Main-Class: example.App\n", Files.readString(new File(projectDir, "build/MANIFEST.MF").toPath()));
+        assertEquals(
+                "Manifest-Version: 1.0\nMain-Class: example.App\n",
+                Files.readString(new File(projectDir, "build/MANIFEST.MF").toPath()));
     }
 
     @Test
@@ -387,7 +389,7 @@ public class JarCommandBuilderTest {
 
         assertTrue(plan.fat());
         assertEquals(
-                "Main-Class: example.Main\n\nImplementation-Title: Example\n",
+                "Manifest-Version: 1.0\nMain-Class: example.Main\n\nImplementation-Title: Example\n",
                 Files.readString(new File(projectDir, "build/MANIFEST.MF").toPath()));
     }
 

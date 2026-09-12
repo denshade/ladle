@@ -164,15 +164,18 @@ public class JarCommandBuilder {
     }
 
     private String buildManifestContent(Map<String, String> jarSection) {
-        var builder = new StringBuilder();
-        appendManifestAttribute(builder, "Main-Class", jarSection.getOrDefault("main-class", "").trim());
+        var attributes = new StringBuilder();
+        appendManifestAttribute(attributes, "Main-Class", jarSection.getOrDefault("main-class", "").trim());
         for (var entry : jarSection.entrySet()) {
             if (RESERVED_JAR_KEYS.contains(entry.getKey())) {
                 continue;
             }
-            appendManifestAttribute(builder, toManifestAttributeName(entry.getKey()), entry.getValue().trim());
+            appendManifestAttribute(attributes, toManifestAttributeName(entry.getKey()), entry.getValue().trim());
         }
-        return builder.toString();
+        if (attributes.isEmpty()) {
+            return "";
+        }
+        return "Manifest-Version: 1.0\n" + attributes;
     }
 
     private static void appendManifestAttribute(StringBuilder builder, String name, String value) {

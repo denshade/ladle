@@ -79,8 +79,38 @@ public class BuildConfigTest {
     }
 
     @Test
+    void javacParameterSummaryAddsDefaultEncodingAndOutput() {
+        var summary = BuildConfig.javacParameterSummary(Map.of("release", "21"));
+
+        assertEquals("-encoding UTF-8 -d build/classes --release 21", summary);
+    }
+
+    @Test
+    void configuredRawJdkPathDefaultsToJavaHome() {
+        assertEquals("$JAVA_HOME", BuildConfig.configuredRawJdkPath(Map.of("javac", Map.of("release", "17"))));
+        assertEquals(".jdk", BuildConfig.configuredRawJdkPath(Map.of("javac", Map.of("path", ".jdk"))));
+    }
+
+    @Test
+    void configuredRawJdkPathRequiresJavacSection() {
+        assertThrows(IllegalStateException.class, () -> BuildConfig.configuredRawJdkPath(Map.of()));
+    }
+
+    @Test
+    void javacDefaultFlagsSkipWhenParametersAlreadySetThem() {
+        assertEquals(
+                List.of(),
+                BuildConfig.javacDefaultFlags(Map.of("parameters", "-encoding UTF-8 -d build/classes")));
+        assertEquals(
+                List.of("-encoding", "UTF-8", "-d", "build/classes"),
+                BuildConfig.javacDefaultFlags(Map.of()));
+    }
+
+    @Test
     void hasSourcesWhenSectionPresent() {
         assertTrue(BuildConfig.hasSources(Map.of("sources", Map.of("paths", "src"))));
         assertFalse(BuildConfig.hasSources(Map.of("javac", Map.of("path", ".jdk"))));
+        assertTrue(BuildConfig.hasJar(Map.of("jar", Map.of("name", "app"))));
+        assertFalse(BuildConfig.hasJar(Map.of("javac", Map.of("path", ".jdk"))));
     }
 }

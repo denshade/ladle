@@ -3,8 +3,13 @@ package thelaboflieven.info.build;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
+import com.sun.net.httpserver.HttpServer;
+
 import java.io.File;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -58,6 +63,105 @@ public class CompileOrchestratorTest {
         assertTrue(new File(root, "dependencies/lib.jar").isFile());
         assertFalse(new File(root, "build/javac.args").exists());
         assertFalse(new File(root, "build/classes").exists());
+        assertFalse(new File(root, "build/lib.jar").exists());
+    }
+
+    @Test
+    @EnabledIf("javacAvailable")
+    void packagesRootJarWhenJarSectionIsPresent() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-build-jar").toFile();
+        writeIni(projectDir, """
+                [javac]
+                path = %s
+
+                [sources]
+                paths = src
+
+                [jar]
+                name = app
+                """.formatted(jdkRoot().replace('\\', '/')));
+        writeJava(projectDir, "src/example/App.java", """
+                package example;
+                public class App {}
+                """);
+
+        new CompileOrchestrator().compile(new File(projectDir, "build.ini"));
+
+        assertTrue(new File(projectDir, "build/classes/example/App.class").isFile());
+        assertTrue(new File(projectDir, "build/app.jar").isFile());
+    }
+
+    @Test
+    @EnabledIf("javacAvailable")
+    void doesNotPackageRootJarWhenJarSectionIsMissing() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-build-no-jar").toFile();
+        writeIni(projectDir, """
+                [javac]
+                path = %s
+
+                [sources]
+                paths = src
+                """.formatted(jdkRoot().replace('\\', '/')));
+        writeJava(projectDir, "src/example/App.java", """
+                package example;
+                public class App {}
+                """);
+
+        new CompileOrchestrator().compile(new File(projectDir, "build.ini"));
+
+        assertTrue(new File(projectDir, "build/classes/example/App.class").isFile());
+        assertFalse(new File(projectDir, "build/" + projectDir.getName() + ".jar").exists());
+    }
+
+    @Test
+    @EnabledIf("javacAvailable")
+    void downloadsMissingDependencyJarsBeforeCompile() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-build-deps").toFile();
+        var jarBytes = dummyJarBytes();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/lib.jar", exchange -> {
+            exchange.sendResponseHeaders(200, jarBytes.length);
+            try (var body = exchange.getResponseBody()) {
+                body.write(jarBytes);
+            }
+        });
+        server.setExecutor(Executors.newSingleThreadExecutor());
+        server.start();
+        try {
+            var url = "http://127.0.0.1:" + server.getAddress().getPort() + "/lib.jar";
+            writeIni(projectDir, """
+                    [javac]
+                    path = %s
+
+                    [sources]
+                    paths = src
+
+                    [dependencies]
+                    lib.jar = %s
+                    """.formatted(jdkRoot().replace('\\', '/'), url));
+            writeJava(projectDir, "src/example/App.java", """
+                    package example;
+                    public class App {}
+                    """);
+
+            assertFalse(new File(projectDir, "dependencies/lib.jar").exists());
+            new CompileOrchestrator().compile(new File(projectDir, "build.ini"));
+
+            assertTrue(new File(projectDir, "dependencies/lib.jar").isFile());
+            assertTrue(new File(projectDir, "build/classes/example/App.class").isFile());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static byte[] dummyJarBytes() throws Exception {
+        var bytes = new java.io.ByteArrayOutputStream();
+        try (var zip = new java.util.zip.ZipOutputStream(bytes)) {
+            zip.putNextEntry(new java.util.zip.ZipEntry("META-INF/MANIFEST.MF"));
+            zip.write("Manifest-Version: 1.0\n".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+        return bytes.toByteArray();
     }
 
     static boolean javacAvailable() {

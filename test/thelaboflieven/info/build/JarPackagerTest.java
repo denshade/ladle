@@ -14,6 +14,7 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JarPackagerTest {
     @Test
@@ -56,7 +57,11 @@ public class JarPackagerTest {
         try (var zip = new ZipFile(outputJar)) {
             assertEquals("app", new String(zip.getInputStream(zip.getEntry("example/App.class")).readAllBytes()));
             assertEquals("lib", new String(zip.getInputStream(zip.getEntry("example/Lib.class")).readAllBytes()));
-            assertNotNull(zip.getEntry("META-INF/MANIFEST.MF"));
+            var manifestEntry = zip.getEntry("META-INF/MANIFEST.MF");
+            assertNotNull(manifestEntry);
+            var manifest = new String(zip.getInputStream(manifestEntry).readAllBytes());
+            assertTrue(manifest.contains("Manifest-Version:"));
+            assertTrue(manifest.contains("Main-Class: example.App"));
             assertNull(zip.getEntry("META-INF/INDEX.LIST"));
         }
     }

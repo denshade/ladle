@@ -3,20 +3,15 @@ package thelaboflieven.info;
 import thelaboflieven.info.build.BuildCleaner;
 import thelaboflieven.info.build.BuildFailedException;
 import thelaboflieven.info.build.CompileOrchestrator;
-import thelaboflieven.info.build.JarPackager;
-import thelaboflieven.info.build.Subprojects;
-import thelaboflieven.info.download.DependencyInstaller;
-import thelaboflieven.info.download.JdkInstaller;
+import thelaboflieven.info.download.DependencyOrchestrator;
 import thelaboflieven.info.test.TestFailedException;
 import thelaboflieven.info.test.TestOrchestrator;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 public class Ladle {
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -62,8 +57,10 @@ public class Ladle {
         var buildIni = resolveIniFile("release", args);
         try {
             var project = ProjectContext.load(buildIni.getAbsolutePath());
+            if (project.iniData().get("jar") == null) {
+                throw new IllegalStateException("Missing [jar] section in INI file.");
+            }
             new CompileOrchestrator().compile(project);
-            new JarPackager().packageRelease(project);
             System.out.println("Release successful.");
         } catch (BuildFailedException e) {
             System.err.println(e.getMessage() + ".");
@@ -77,10 +74,8 @@ public class Ladle {
     private static void runDependency(String[] args) throws IOException {
         var buildIni = resolveIniFile("dependency", args);
         try {
-            var installed = installDependencies(
-                    ProjectContext.load(buildIni.getAbsolutePath()),
-                    new HashSet<>(),
-                    true);
+            var installed = new DependencyOrchestrator().install(
+                    ProjectContext.load(buildIni.getAbsolutePath()));
             if (installed > 0) {
                 System.out.println("Dependencies installed.");
             }
@@ -88,57 +83,6 @@ public class Ladle {
             System.err.println(e.getMessage());
             System.exit(2);
         }
-    }
-
-    private static int installDependencies(
-            ProjectContext project,
-            Set<String> visitedInChain,
-            boolean isRoot
-    ) throws IOException {
-        var canonicalPath = project.iniFile().getCanonicalPath();
-        if (!visitedInChain.add(canonicalPath)) {
-            throw new IllegalStateException("Circular subproject reference: " + project.iniFile().getPath());
-        }
-
-        try {
-            int installed = 0;
-            var subprojects = Subprojects.read(project.iniData());
-            for (var subproject : subprojects) {
-                System.out.println(
-                        "Installing dependencies for subproject " + subproject.name()
-                                + " (" + subproject.path() + ")");
-                installed += installDependencies(
-                        Subprojects.load(project.projectDir(), subproject),
-                        visitedInChain,
-                        false);
-            }
-            installed += installProjectDependencies(project, isRoot && subprojects.isEmpty());
-            return installed;
-        } finally {
-            visitedInChain.remove(canonicalPath);
-        }
-    }
-
-    private static int installProjectDependencies(ProjectContext project, boolean warnWhenEmpty) throws IOException {
-        var installer = new DependencyInstaller(project);
-        var artifacts = installer.artifacts();
-        if (artifacts.isEmpty() && !JdkInstaller.isConfigured(project.iniData())) {
-            if (warnWhenEmpty) {
-                System.err.println("Warning: no dependencies configured in " + project.iniFile().getName() + ".");
-            }
-            return 0;
-        }
-
-        int installed = 0;
-        if (JdkInstaller.isConfigured(project.iniData())) {
-            JdkInstaller.ensureInstalled(project.projectDir(), project.iniData());
-        }
-
-        if (!artifacts.isEmpty()) {
-            System.out.println("Dependencies from " + project.iniFile().getName() + ":");
-            installed = installer.install(project.projectDir());
-        }
-        return installed;
     }
 
     private static void runTest(String[] args) throws IOException, InterruptedException {
@@ -228,10 +172,10 @@ public class Ladle {
     private static void printHelp() {
         System.out.println("thelaboflieven.info.Ladle version 0.2");
         System.out.println("Usage:");
-        System.out.println("  ladle build [<ini-file>]       Compile Java sources (default: build.ini)");
-        System.out.println("  ladle release [<ini-file>]     Compile and package a JAR (default: build.ini)");
-        System.out.println("  ladle dependency [<ini-file>] Download JDK and dependencies (default: build.ini)");
-        System.out.println("  ladle test [<ini-file>] [<class>...]  Run unit tests (default: build.ini)");
+        System.out.println("  ladle build [<ini-file>]       Compile sources and package a JAR when [jar] is set");
+        System.out.println("  ladle release [<ini-file>]     Same as build; requires [jar] (default: build.ini)");
+        System.out.println("  ladle dependency [<ini-file>]  Optional: download JDK and dependencies");
+        System.out.println("  ladle test [<ini-file>] [<class>...]  Compile and run unit tests");
         System.out.println("  ladle clear [<ini-file>]       Delete the build directory (default: build.ini)");
         System.out.println("  ladle --help                   Show this help message");
     }

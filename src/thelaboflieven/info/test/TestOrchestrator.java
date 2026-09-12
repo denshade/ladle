@@ -3,8 +3,11 @@ package thelaboflieven.info.test;
 import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.CommandsRunner;
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.build.BuildConfig;
+import thelaboflieven.info.build.CompileOrchestrator;
 import thelaboflieven.info.build.Subproject;
 import thelaboflieven.info.build.Subprojects;
+import thelaboflieven.info.download.DependencyOrchestrator;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,13 +18,32 @@ import java.util.function.Function;
 
 public class TestOrchestrator {
     private final Function<File, CommandsRunner> runnerFactory;
+    private final CompileOrchestrator compileOrchestrator;
+    private final DependencyOrchestrator dependencyOrchestrator;
 
     public TestOrchestrator() {
-        this(CommandsRunner::new);
+        this(CommandsRunner::new, new CompileOrchestrator(), new DependencyOrchestrator());
     }
 
     TestOrchestrator(Function<File, CommandsRunner> runnerFactory) {
+        this(runnerFactory, new CompileOrchestrator(), new DependencyOrchestrator());
+    }
+
+    TestOrchestrator(
+            Function<File, CommandsRunner> runnerFactory,
+            CompileOrchestrator compileOrchestrator
+    ) {
+        this(runnerFactory, compileOrchestrator, new DependencyOrchestrator());
+    }
+
+    TestOrchestrator(
+            Function<File, CommandsRunner> runnerFactory,
+            CompileOrchestrator compileOrchestrator,
+            DependencyOrchestrator dependencyOrchestrator
+    ) {
         this.runnerFactory = runnerFactory;
+        this.compileOrchestrator = compileOrchestrator;
+        this.dependencyOrchestrator = dependencyOrchestrator;
     }
 
     public int test(File iniFile) throws IOException, InterruptedException {
@@ -48,6 +70,19 @@ public class TestOrchestrator {
         }
 
         try {
+            if (isRoot) {
+                var subprojects = Subprojects.read(project.iniData());
+                if (project.iniData().get("test") == null && subprojects.isEmpty()) {
+                    throw new IllegalStateException(
+                            "Missing [test] section in INI file. Omit it only when [subproject] is present.");
+                }
+                if (BuildConfig.hasSources(project.iniData()) || !subprojects.isEmpty()) {
+                    compileOrchestrator.compile(project);
+                } else {
+                    dependencyOrchestrator.install(project);
+                }
+            }
+
             int testClassCount = 0;
             var subprojects = Subprojects.read(project.iniData());
             for (var subproject : subprojects) {

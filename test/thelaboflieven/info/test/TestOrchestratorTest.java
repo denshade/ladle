@@ -41,11 +41,7 @@ public class TestOrchestratorTest {
                 lib = lib
                 """);
         writeIni(child, """
-                [javac]
-                path = .jdk
-
-                [sources]
-                paths = src
+                # leaf without sources or tests
                 """);
 
         var tested = new TestOrchestrator().test(new File(root, "build.ini"));
@@ -133,6 +129,47 @@ public class TestOrchestratorTest {
     }
 
     @Test
+    @org.junit.jupiter.api.condition.EnabledIf("javacAvailable")
+    void compilesMainSourcesBeforeRunningTests() throws Exception {
+        var projectDir = Files.createTempDirectory("ladle-test-compiles").toFile();
+        writeIni(projectDir, """
+                [javac]
+                path = %s
+
+                [sources]
+                paths = src
+
+                [test]
+                sources = test
+                """.formatted(jdkRoot().replace('\\', '/')));
+        writeJava(projectDir, "src/example/App.java", """
+                package example;
+                public class App {
+                    public static String id() { return "app"; }
+                }
+                """);
+        writeJava(projectDir, "test/example/AppTest.java", """
+                package example;
+                public class AppTest {}
+                """);
+
+        var commands = new ArrayList<List<String>>();
+        var tested = new TestOrchestrator(dir -> new CommandsRunner(dir) {
+            @Override
+            public int run(List<List<String>> projectCommands) {
+                commands.addAll(projectCommands);
+                return 0;
+            }
+        }).test(new File(projectDir, "build.ini"));
+
+        assertEquals(1, tested);
+        assertTrue(new File(projectDir, "build/classes/example/App.class").isFile());
+        assertEquals(2, commands.size());
+        assertTrue(commands.get(0).stream().anyMatch(argument -> argument.endsWith("AppTest.java")));
+        assertTrue(commands.get(1).contains("example.AppTest"));
+    }
+
+    @Test
     void failsWhenFilterMatchesNothing() throws Exception {
         var projectDir = Files.createTempDirectory("ladle-test-no-match").toFile();
         writeJdkTools(projectDir);
@@ -152,6 +189,15 @@ public class TestOrchestratorTest {
                 IllegalStateException.class,
                 () -> new TestOrchestrator().test(new File(projectDir, "build.ini"), List.of("MissingTest")));
         assertEquals("No test class matching: MissingTest", thrown.getMessage());
+    }
+
+    static boolean javacAvailable() {
+        return new File(jdkRoot(), "bin" + File.separator + BuildConfig.toolFileName("javac")).canRead()
+                && new File(jdkRoot(), "bin" + File.separator + BuildConfig.toolFileName("jar")).canRead();
+    }
+
+    private static String jdkRoot() {
+        return System.getProperty("java.home");
     }
 
     private static void writeJdkTools(File projectDir) throws Exception {

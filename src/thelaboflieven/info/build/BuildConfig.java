@@ -1,5 +1,6 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.CommandLine;
 import thelaboflieven.info.inifile.IniEnvironment;
 
 import java.io.File;
@@ -10,13 +11,19 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class BuildConfig {
-    private static final String DEFAULT_CLASSES_DIR = "build/classes";
+    public static final String DEFAULT_CLASSES_DIR = "build/classes";
+    public static final String DEFAULT_JDK_PATH = "$JAVA_HOME";
+    public static final String DEFAULT_ENCODING = "UTF-8";
 
     private BuildConfig() {
     }
 
     public static boolean hasSources(Map<String, Map<String, String>> iniData) {
         return iniData.get("sources") != null;
+    }
+
+    public static boolean hasJar(Map<String, Map<String, String>> iniData) {
+        return iniData.get("jar") != null;
     }
 
     public static String classesDirectory(Map<String, Map<String, String>> iniData) {
@@ -58,10 +65,14 @@ public final class BuildConfig {
 
     public static String configuredRawJdkPath(Map<String, Map<String, String>> iniData) {
         Map<String, String> javacSection = iniData.get("javac");
-        if (javacSection == null || javacSection.getOrDefault("path", "").isBlank()) {
+        if (javacSection == null) {
             throw new IllegalStateException("Missing JDK path in [javac].path.");
         }
-        return javacSection.get("path").trim();
+        var path = javacSection.getOrDefault("path", "").trim();
+        if (path.isBlank()) {
+            return DEFAULT_JDK_PATH;
+        }
+        return path;
     }
 
     public static File javacExecutable(File projectDir, Map<String, Map<String, String>> iniData) {
@@ -93,6 +104,21 @@ public final class BuildConfig {
             return tool + ".exe";
         }
         return tool;
+    }
+
+    public static List<String> javacDefaultFlags(Map<String, String> javacSection) {
+        var parameters = CommandLine.splitParameters(
+                javacSection == null ? "" : javacSection.getOrDefault("parameters", ""));
+        var flags = new ArrayList<String>();
+        if (!parameters.contains("-encoding")) {
+            flags.add("-encoding");
+            flags.add(DEFAULT_ENCODING);
+        }
+        if (!parameters.contains("-d")) {
+            flags.add("-d");
+            flags.add(DEFAULT_CLASSES_DIR);
+        }
+        return flags;
     }
 
     public static List<String> javacVersionFlags(Map<String, String> javacSection) {
@@ -128,15 +154,20 @@ public final class BuildConfig {
         if (javacSection == null) {
             return "";
         }
+        var parts = new ArrayList<String>();
+        var defaults = String.join(" ", javacDefaultFlags(javacSection));
+        if (!defaults.isBlank()) {
+            parts.add(defaults);
+        }
         var versionFlags = String.join(" ", javacVersionFlags(javacSection));
+        if (!versionFlags.isBlank()) {
+            parts.add(versionFlags);
+        }
         var parameters = javacSection.getOrDefault("parameters", "").trim();
-        if (versionFlags.isBlank()) {
-            return parameters;
+        if (!parameters.isBlank()) {
+            parts.add(parameters);
         }
-        if (parameters.isBlank()) {
-            return versionFlags;
-        }
-        return versionFlags + " " + parameters;
+        return String.join(" ", parts);
     }
 
     private static String findFlagValue(String parameters, String flag, String defaultValue) {

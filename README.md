@@ -36,24 +36,24 @@ your-project/
 Run from the project root:
 
 ```sh
-./bin/ladle build build.ini
-./bin/ladle release build.ini
-./bin/ladle dependency build.ini
-./bin/ladle test build.ini
+./bin/ladle build
+./bin/ladle test
 ./bin/ladle --help
 ```
 
 Windows:
 
 ```powershell
-.\bin\ladle.ps1 build build.ini
+.\bin\ladle.ps1 build
 ```
 
 Or invoke the JAR directly (requires `java` on PATH):
 
 ```sh
-java -jar lib/ladle.jar build build.ini
+java -jar lib/ladle.jar build
 ```
+
+`build.ini` in the current directory is the default; pass a path only when it is somewhere else. `ladle build` compiles sources, copies resources, fetches any missing JDK or JARs, and packages a JAR when `[jar]` is set. `ladle test` does the same compile, then runs tests. `ladle dependency` is optional (CI cache warming).
 
 ### Developing Ladle itself
 
@@ -78,19 +78,16 @@ Copy into your repository:
 
 ## Quick start
 
-Run Ladle with a path to your build INI file:
-
 ```sh
-./bin/ladle build build.ini
-./bin/ladle release build.ini
-./bin/ladle dependency build.ini
+./bin/ladle build
+./bin/ladle test
 ```
 
 Or:
 
 ```sh
-java -jar lib/ladle.jar build build.ini
-java -jar lib/ladle.jar dependency build.ini
+java -jar lib/ladle.jar build
+java -jar lib/ladle.jar test
 ```
 
 Commands run with the INI file's directory as the working directory, so use paths relative to that file unless you specify absolute paths.
@@ -107,14 +104,14 @@ The `build` command compiles Java sources with `javac`. A project that compiles 
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `path` | yes, when compiling | — | JDK root directory. Use `$JAVA_HOME` for an installed JDK, or a project-local path such as `.jdk` (downloaded by `ladle dependency` when `download.*` URLs are configured). Supports `$VAR` and `${VAR}` environment expansion. Not required when `[sources]` is omitted. |
+| `path` | no | `$JAVA_HOME` | JDK root directory. Use `$JAVA_HOME` for an installed JDK, or a project-local path such as `.jdk` (downloaded when `download.*` URLs are configured and the directory is missing). Supports `$VAR` and `${VAR}` environment expansion. Not required when `[sources]` is omitted. |
 | `download.windows` | no | — | Windows JDK archive URL. Used when `path` points at a missing local JDK. |
 | `download.linux` | no | — | Linux JDK archive URL. |
 | `download.macos` | no | — | macOS JDK archive URL. |
 | `release` | no | — | Java platform version for `javac --release` (for example `17` or `21`). Prefer this over `source`/`target`. |
 | `source` | no | — | Java source language level for `javac -source` (for example `17`). |
 | `target` | no | — | Java bytecode level for `javac -target` (for example `17`). |
-| `parameters` | no | *(empty)* | Extra arguments passed to `javac`, separated by spaces (for example `-encoding UTF-8 -d build`). |
+| `parameters` | no | `-encoding UTF-8 -d build/classes` | Extra arguments passed to `javac`, separated by spaces. Ladle adds `-encoding UTF-8` and `-d build/classes` when `parameters` does not already set them. |
 
 #### `[sources]`
 
@@ -141,7 +138,7 @@ paths = src/main/resources, build/generated-resources
 build/generated/inject-MockMethodDispatcher.raw = inject-MockMethodDispatcher.raw
 ```
 
-During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). `[annotationprocessor]` JARs go on `javac -processorpath`, not `-cp`. Run `ladle dependency` first so dependency JARs and a missing project JDK exist on disk.
+During `ladle build`, the compile classpath includes JARs from `[subproject]` (as `dependencies/{name}.jar`), from `[dependencies]`, and from `[compileonlydependencies]` (downloaded JARs under `dependencies/`). `[annotationprocessor]` JARs go on `javac -processorpath`, not `-cp`. Missing dependency JARs and a missing project JDK are downloaded automatically.
 
 Example `build.ini` with a downloaded project JDK:
 
@@ -152,7 +149,6 @@ download.windows = https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/j
 download.linux = https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse
 download.macos = https://api.adoptium.net/v3/binary/latest/21/ga/mac/x64/jdk/hotspot/normal/eclipse
 release = 21
-parameters = -encoding UTF-8 -d build/classes
 
 [sources]
 paths = src
@@ -165,15 +161,13 @@ Or set source and target separately:
 path = .jdk
 source = 17
 target = 17
-parameters = -encoding UTF-8 -d build/classes
 ```
 
-Or use an installed JDK explicitly:
+Or use an installed JDK (the default when `path` is omitted):
 
 ```ini
 [javac]
-path = $JAVA_HOME
-parameters = -encoding UTF-8 -d build/classes
+release = 17
 
 [sources]
 paths = src
@@ -182,7 +176,7 @@ paths = src
 This runs (conceptually):
 
 ```
-{path}/bin/javac -encoding UTF-8 -d build <every .java file under src/ and test/>
+{path}/bin/javac -encoding UTF-8 -d build/classes <every .java file under src/>
 ```
 
 On Windows, tool names use the `.exe` suffix (`javac.exe`, `java.exe`, `jar.exe`).
@@ -193,18 +187,18 @@ Long `javac` command lines are written to `{build}/javac.args` and invoked as `j
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `directory` | no | `build` | Output directory removed by `ladle clear`. Also the default JAR output directory for `ladle release`. |
+| `directory` | no | `build` | Output directory removed by `ladle clear`. Also the default JAR output directory for `ladle build`. |
 
 #### `[jar]`
 
-Required for `ladle release`. Describes the JAR written after compilation and resource copying.
+Optional for `ladle build`. When present, Ladle packages a JAR after compilation and resource copying. `ladle release` is the same as `build` and requires this section.
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
 | `name` | no | project directory name | Output JAR filename without the `.jar` extension. |
 | `directory` | no | `[build].directory` | Directory that receives the JAR (for example `build` or `lib`). |
 | `manifest` | no | — | Path to a `MANIFEST.MF` file relative to the project directory. When set, Ladle runs `jar cfm` instead of `jar cf`. |
-| `main-class` | no | — | Shorthand for a generated manifest with `Main-Class`. Ignored when `manifest` is set. |
+| `main-class` | no | — | Shorthand for a generated manifest with `Manifest-Version: 1.0` and `Main-Class`. Ignored when `manifest` is set. |
 | `include` | no | all files | Comma-separated Ant-style globs of paths relative to the classes directory (or `{build}/fat-classes` when `fat = true`). When omitted, every file is packaged (`jar … -C {classes} .`). |
 | `exclude` | no | — | Comma-separated Ant-style globs to omit after `include`. `*` does not cross `/`; `**` matches any depth. |
 | `fat` | no | `false` | When `true`, unpack `[subproject]` and `[dependencies]` JARs into `{build}/fat-classes` together with the project classes, then package that tree. `[compileonlydependencies]`, `[testdependencies]`, and `[annotationprocessor]` JARs are omitted. |
@@ -236,7 +230,7 @@ include = **/*.class, **/*.properties, META-INF/**
 exclude = module-info.class, **/internal/**
 ```
 
-This writes `build/myapp.jar` when you run `./bin/ladle release build.ini`.
+This writes `build/myapp.jar` when you run `./bin/ladle build`.
 
 Set `fat = true` to build an uber JAR that can run without a separate `dependencies/` directory. Ladle unpacks each `[subproject]` JAR (as `dependencies/{name}.jar`) and each `[dependencies]` JAR into `{build}/fat-classes`, copies the project classes on top, then runs `jar` on that directory.
 
@@ -281,10 +275,10 @@ Build order:
 
 ### Dependencies (`dependency` command)
 
-The `dependency` command downloads a missing project JDK (when configured) and JARs listed in the INI into `dependencies/`. JAR files already present in `dependencies/` are left as-is. It walks `[subproject]` entries first, so one invocation on an aggregator installs each subproject's dependencies:
+Missing JARs and a missing project JDK are downloaded automatically during `ladle build` and `ladle test`. The `dependency` command is an optional prefetch: it walks `[subproject]` entries and writes JARs into `dependencies/` without compiling. JAR files already present are left as-is:
 
 ```sh
-./bin/ladle dependency build.ini
+./bin/ladle dependency
 ```
 
 #### `[dependencies]`
@@ -353,7 +347,7 @@ If `[dependencies]`, `[compileonlydependencies]`, `[testdependencies]`, and `[an
 
 ### Tests (`test` command)
 
-The `test` command compiles optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5 (default) or JUnit 4. It requires a `[test]` section, except when this INI only lists `[subproject]` entries. Main sources must be built first (`ladle build`), and JUnit JARs must be present (`ladle dependency`).
+The `test` command compiles main sources (the same as `ladle build`), then optional `[testfixtures]` sources, then test sources, and runs them with JUnit 5 (default) or JUnit 4. It requires a `[test]` section, except when this INI only lists `[subproject]` entries. JUnit JARs listed in `[testdependencies]` are downloaded if they are missing.
 
 Optional arguments after the INI file select which tests to run: a fully qualified class name (`example.AppTest`), a simple class name (`AppTest`), or a `*Test.java` file path. Ladle compiles and runs only the matching classes. With no extra arguments, every `*Test.java` class is run.
 
@@ -376,8 +370,6 @@ junit-platform-console-standalone-6.1.0.jar = https://repo1.maven.org/maven2/org
 
 [test]
 sources = test
-classpath = build/classes
-output = build/test-classes
 ```
 
 If no `*Test.java` files are found, Ladle prints a warning and exits successfully.
@@ -391,8 +383,6 @@ hamcrest-core-1.3.jar = https://repo1.maven.org/maven2/org/hamcrest/hamcrest-cor
 
 [test]
 sources = test
-classpath = build/classes
-output = build/test-classes
 runner = org.junit.runner.JUnitCore
 ```
 
@@ -413,13 +403,9 @@ Example:
 ```ini
 [testfixtures]
 sources = src/testFixtures/java
-classpath = build/classes
-output = build/test-fixtures-classes
 
 [test]
 sources = src/test/java
-classpath = build/classes
-output = build/test-classes
 ```
 
 During `ladle test`, Ladle:
@@ -436,7 +422,7 @@ Long fixture `javac` command lines are written to `{build}/test-fixtures-javac.a
 [javac]
 path = .jdk
 download.linux = https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse
-parameters = -encoding UTF-8 -d build/classes
+release = 21
 
 [sources]
 paths = src
@@ -450,15 +436,18 @@ sources = src/testFixtures/java
 
 [test]
 sources = test
-classpath = build/classes
+
+[jar]
+name = mylib
 ```
 
 Workflow:
 
-1. `./bin/ladle dependency build.ini` — fetch JDK and JARs.
-2. `./bin/ladle build build.ini` — compile sources.
-3. `./bin/ladle release build.ini` — compile sources and package a JAR (requires `[jar]`).
-4. `./bin/ladle test build.ini` — compile and run unit tests.
+1. `./bin/ladle build` — fetch missing JDK/JARs, compile sources, copy resources, and package a JAR when `[jar]` is set.
+2. `./bin/ladle test` — same compile, then compile and run unit tests.
+3. `./bin/ladle clear` — delete the build directory.
+
+`./bin/ladle dependency` is optional (download without compiling). `./bin/ladle release` is the same as `build` and requires `[jar]`.
 
 ## Command reference
 
@@ -466,11 +455,11 @@ Workflow:
 |---------|-----------|-------------|
 | *(none)* | — | Print welcome message. |
 | `--help` | — | Print brief usage (exits with status 1). |
-| `build` | `<ini-file>` | Compile Java sources described in the INI file. |
-| `release` | `<ini-file>` | Compile sources, copy resources, and package a JAR (requires `[jar]`). Set `[jar].fat = true` to unpack runtime JARs into the same archive. |
-| `dependency` | `<ini-file>` | Download a missing project JDK (when configured) and JAR dependencies from the INI file and its `[subproject]` entries. |
-| `test` | `<ini-file>` `[<class-or-file>...]` | Compile and run unit tests described in the INI file and its `[subproject]` entries. Extra arguments limit the run to matching `*Test` classes. |
-| `clear` | `<ini-file>` | Delete the build directory described in the INI file. |
+| `build` | `[<ini-file>]` | Compile Java sources, copy resources, fetch missing JDK/JARs, and package a JAR when `[jar]` is set. Default INI: `build.ini`. |
+| `release` | `[<ini-file>]` | Same as `build`; requires `[jar]`. |
+| `dependency` | `[<ini-file>]` | Optional prefetch: download a missing project JDK (when configured) and JAR dependencies from the INI file and its `[subproject]` entries. |
+| `test` | `[<ini-file>]` `[<class-or-file>...]` | Compile the project (same as `build`) and run unit tests. Extra arguments limit the run to matching `*Test` classes. |
+| `clear` | `[<ini-file>]` | Delete the build directory described in the INI file. |
 
 If the INI path is missing or not readable, Ladle prints an error and exits with status 2.
 

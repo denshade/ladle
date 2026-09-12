@@ -21,6 +21,12 @@ public class JdkInstallerTest {
     }
 
     @Test
+    void isConfiguredWhenJavacSectionHasNoPath() {
+        var iniData = Map.of("javac", Map.of("release", "17"));
+        assertTrue(JdkInstaller.isConfigured(iniData));
+    }
+
+    @Test
     void isNotConfiguredWithoutJavacSection() {
         assertFalse(JdkInstaller.isConfigured(Map.of()));
     }

@@ -102,6 +102,30 @@ public class JavacCommandBuilderTest {
     }
 
     @Test
+    void addsDefaultEncodingAndOutputWhenParametersOmitted() throws Exception {
+        var projectDir = newProject("ladle-javac-defaults");
+        writeJava(projectDir, "src/example/App.java", """
+                package example;
+                public class App {}
+                """);
+        writeIni(projectDir, """
+                [javac]
+                path = .jdk
+                release = 17
+
+                [sources]
+                paths = src
+                """);
+
+        var plan = new JavacCommandBuilder(new File(projectDir, "build.ini").getAbsolutePath()).buildPlan();
+
+        assertEquals("UTF-8", flagValue(plan.command(), "-encoding"));
+        assertEquals("build/classes", flagValue(plan.command(), "-d"));
+        assertEquals("17", flagValue(plan.command(), "--release"));
+        assertEquals("-encoding UTF-8 -d build/classes --release 17", plan.parameters());
+    }
+
+    @Test
     void failsWhenSourcesSectionMissing() throws Exception {
         var projectDir = newProject("ladle-javac-no-sources");
         writeIni(projectDir, """

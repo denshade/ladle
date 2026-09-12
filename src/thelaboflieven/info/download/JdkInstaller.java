@@ -16,11 +16,7 @@ public final class JdkInstaller {
     }
 
     public static boolean isConfigured(Map<String, Map<String, String>> iniData) {
-        Map<String, String> javacSection = iniData.get("javac");
-        if (javacSection == null) {
-            return false;
-        }
-        return !javacSection.getOrDefault("path", "").isBlank() || hasDownloadUrl(javacSection);
+        return iniData.get("javac") != null;
     }
 
     public static void ensureInstalled(File projectDir, Map<String, Map<String, String>> iniData) throws IOException {
@@ -29,13 +25,10 @@ public final class JdkInstaller {
             throw new IllegalStateException("Missing [javac] section in INI file.");
         }
 
-        var rawPath = javacSection.getOrDefault("path", "").trim();
-        if (rawPath.isBlank()) {
-            throw new IllegalStateException("Missing JDK path in [javac].path.");
-        }
-
+        var rawPath = BuildConfig.configuredRawJdkPath(iniData);
         var jdkRoot = BuildConfig.jdkRoot(projectDir, iniData);
-        if (BuildConfig.toolExecutable(jdkRoot, "javac").canRead()) {
+        var javac = new File(jdkRoot, "bin" + File.separator + BuildConfig.toolFileName("javac"));
+        if (javac.canRead()) {
             return;
         }
 
@@ -53,7 +46,7 @@ public final class JdkInstaller {
         }
 
         install(projectDir, jdkRoot, downloadUrl);
-        if (!BuildConfig.toolExecutable(jdkRoot, "javac").canRead()) {
+        if (!new File(jdkRoot, "bin" + File.separator + BuildConfig.toolFileName("javac")).canRead()) {
             throw new IOException("JDK install completed but javac is missing at " + jdkRoot.getPath());
         }
     }

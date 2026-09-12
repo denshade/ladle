@@ -2,6 +2,7 @@ package thelaboflieven.info.build;
 
 import thelaboflieven.info.CommandsRunner;
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.download.DependencyOrchestrator;
 import thelaboflieven.info.download.DependencyPaths;
 
 import java.io.File;
@@ -12,13 +13,19 @@ import java.util.Set;
 
 public class CompileOrchestrator {
     private final JarPackager jarPackager;
+    private final DependencyOrchestrator dependencyOrchestrator;
 
     public CompileOrchestrator() {
-        this(new JarPackager());
+        this(new JarPackager(), new DependencyOrchestrator());
     }
 
     CompileOrchestrator(JarPackager jarPackager) {
+        this(jarPackager, new DependencyOrchestrator());
+    }
+
+    CompileOrchestrator(JarPackager jarPackager, DependencyOrchestrator dependencyOrchestrator) {
         this.jarPackager = jarPackager;
+        this.dependencyOrchestrator = dependencyOrchestrator;
     }
 
     public void compile(File iniFile) throws IOException, InterruptedException {
@@ -46,7 +53,14 @@ public class CompileOrchestrator {
                 compileSubproject(project.projectDir(), subproject, visitedInChain);
             }
 
-            if (BuildConfig.hasSources(project.iniData())) {
+            var hasSources = BuildConfig.hasSources(project.iniData());
+            if (!hasSources && subprojects.isEmpty() && publish == null) {
+                throw new IllegalStateException(
+                        "Missing [sources] section in INI file. Omit it only when [subproject] is present.");
+            }
+
+            dependencyOrchestrator.installProject(project);
+            if (hasSources) {
                 var plan = new JavacCommandBuilder(project).buildPlan();
                 printBuildPlan(project.iniFile(), plan);
                 var runner = new CommandsRunner(project.projectDir());
@@ -55,8 +69,7 @@ public class CompileOrchestrator {
                     throw new BuildFailedException(exitCode);
                 }
             } else if (subprojects.isEmpty()) {
-                throw new IllegalStateException(
-                        "Missing [sources] section in INI file. Omit it only when [subproject] is present.");
+                System.out.println("No [sources] in " + project.iniFile().getName() + "; skipping compile.");
             } else {
                 System.out.println(
                         "No [sources] in " + project.iniFile().getName() + "; compiling subprojects only.");
@@ -67,10 +80,16 @@ public class CompileOrchestrator {
                 printResourceCopyPlan(resourcePlan);
             }
 
-            if (publish != null) {
-                jarPackager.packageJar(
-                        project,
-                        new File(publish.directory(), publish.name() + ".jar"));
+            var classesDir = new File(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
+            if (classesDir.isDirectory()) {
+                if (BuildConfig.hasJar(project.iniData())) {
+                    jarPackager.packageRelease(project);
+                }
+                if (publish != null) {
+                    jarPackager.packageJar(
+                            project,
+                            new File(publish.directory(), publish.name() + ".jar"));
+                }
             }
 
             System.out.println("Build successful.");

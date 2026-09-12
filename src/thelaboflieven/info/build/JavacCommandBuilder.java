@@ -62,6 +62,7 @@ public class JavacCommandBuilder {
             javacArguments.add("-processor");
             javacArguments.add(processorClasses);
         }
+        javacArguments.addAll(BuildConfig.javacDefaultFlags(javacSection));
         javacArguments.addAll(versionFlags);
         javacArguments.addAll(CommandLine.splitParameters(parameters));
 
