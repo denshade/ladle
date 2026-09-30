@@ -26,14 +26,14 @@ public class ResourceCopier {
             return 0;
         }
 
-        var classesDir = new File(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
+        var classesDir = ProjectPaths.resolve(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
         classesDir.mkdirs();
 
         var copiedCount = 0;
         var paths = resourcesSection.get("paths");
         if (paths != null && !paths.isBlank()) {
             for (var pathEntry : ProjectPaths.commaSeparated(paths)) {
-                var sourceRoot = new File(project.projectDir(), pathEntry);
+                var sourceRoot = ProjectPaths.resolve(project.projectDir(), pathEntry);
                 if (!sourceRoot.isDirectory()) {
                     continue;
                 }
@@ -45,7 +45,7 @@ public class ResourceCopier {
             if ("paths".equals(entry.getKey())) {
                 continue;
             }
-            var source = new File(project.projectDir(), entry.getKey().trim());
+            var source = ProjectPaths.resolve(project.projectDir(), entry.getKey().trim());
             if (!source.exists()) {
                 throw new IllegalStateException("Missing resource source: " + source.getPath());
             }

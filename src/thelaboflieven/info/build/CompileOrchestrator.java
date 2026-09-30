@@ -3,6 +3,7 @@ package thelaboflieven.info.build;
 import thelaboflieven.info.CommandFailedException;
 import thelaboflieven.info.CommandsRunner;
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.download.Dependencies;
 import thelaboflieven.info.download.DependencyOrchestrator;
 
@@ -64,7 +65,7 @@ public class CompileOrchestrator {
                 System.out.println("Copying " + copied + " resource file(s) into classes directory...");
             }
 
-            var classesDir = new File(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
+            var classesDir = ProjectPaths.resolve(project.projectDir(), BuildConfig.classesDirectory(project.iniData()));
             if (classesDir.isDirectory()) {
                 var jarBuilder = new JarCommandBuilder(project);
                 if (BuildConfig.hasJar(project.iniData())) {

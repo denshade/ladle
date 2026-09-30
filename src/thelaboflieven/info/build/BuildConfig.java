@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.CommandLine;
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.inifile.IniEnvironment;
 
 import java.io.File;
@@ -52,15 +53,34 @@ public final class BuildConfig {
 
     public static File jdkRoot(File projectDir, String rawPath) {
         var expandedPath = IniEnvironment.expand(rawPath.trim());
-        var jdkRoot = new File(expandedPath);
-        if (!jdkRoot.isAbsolute()) {
-            jdkRoot = new File(projectDir, expandedPath);
-        }
+        var jdkRoot = jdkRootFromConfiguredPath(ProjectPaths.resolve(projectDir, expandedPath));
         try {
             return jdkRoot.getCanonicalFile();
         } catch (IOException e) {
             return jdkRoot.getAbsoluteFile();
         }
+    }
+
+    private static File jdkRootFromConfiguredPath(File resolved) {
+        if (!isJdkToolFile(resolved.getName())) {
+            return resolved;
+        }
+        var bin = resolved.getParentFile();
+        if (bin == null || !bin.getName().equalsIgnoreCase("bin")) {
+            return resolved;
+        }
+        var root = bin.getParentFile();
+        return root == null ? resolved : root;
+    }
+
+    private static boolean isJdkToolFile(String name) {
+        var lower = name.toLowerCase(Locale.ROOT);
+        return lower.equals("javac.exe")
+                || lower.equals("javac")
+                || lower.equals("java.exe")
+                || lower.equals("java")
+                || lower.equals("jar.exe")
+                || lower.equals("jar");
     }
 
     public static String configuredRawJdkPath(Map<String, Map<String, String>> iniData) {
@@ -89,7 +109,7 @@ public final class BuildConfig {
 
     public static File toolExecutable(File jdkRoot, String tool) {
         try {
-            var executable = new File(jdkRoot, "bin" + File.separator + toolFileName(tool));
+            var executable = new File(jdkRoot, "bin").toPath().resolve(toolFileName(tool)).toFile();
             if (!executable.canRead()) {
                 throw new IllegalStateException("Cannot read " + executable.getPath());
             }

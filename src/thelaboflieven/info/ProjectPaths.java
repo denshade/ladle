@@ -17,6 +17,14 @@ public final class ProjectPaths {
     public record Located(Path root, Path file) {
     }
 
+    public static File resolve(File baseDir, String path) {
+        var candidate = Path.of(path.trim());
+        if (candidate.isAbsolute() || baseDir == null) {
+            return candidate.toFile();
+        }
+        return baseDir.toPath().resolve(candidate).normalize().toFile();
+    }
+
     public static String relativeTo(File projectDir, File file) throws IOException {
         var projectPath = projectDir.getCanonicalFile().toPath();
         var filePath = file.getCanonicalFile().toPath();
@@ -48,7 +56,7 @@ public final class ProjectPaths {
     ) throws IOException {
         var files = new ArrayList<Located>();
         for (var sourceRoot : commaSeparated(csvPaths)) {
-            var root = new File(projectDir, sourceRoot);
+            var root = resolve(projectDir, sourceRoot);
             if (!root.isDirectory()) {
                 throw new IllegalStateException(missingPathMessage + root.getPath());
             }

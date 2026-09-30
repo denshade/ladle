@@ -31,7 +31,7 @@ public class JarCommandBuilder {
 
     public JarPlan planFor(File outputJar) throws IOException {
         String classesDir = BuildConfig.classesDirectory(project.iniData());
-        var classesPath = new File(project.projectDir(), classesDir);
+        var classesPath = ProjectPaths.resolve(project.projectDir(), classesDir);
         var jarTool = BuildConfig.jarExecutable(project.projectDir(), project.iniData());
         if (!classesPath.isDirectory()) {
             throw new IllegalStateException("Missing compiled classes directory: " + classesPath.getPath());
@@ -44,7 +44,7 @@ public class JarCommandBuilder {
         var unpackedJars = List.<String>of();
         if (fat) {
             packageDir = FatJarAssembler.stagingDirectory(project);
-            packagePath = new File(project.projectDir(), packageDir);
+            packagePath = ProjectPaths.resolve(project.projectDir(), packageDir);
             unpackedJars = FatJarAssembler.assemble(project, classesPath, packagePath);
         }
 
@@ -160,7 +160,8 @@ public class JarCommandBuilder {
             outputDirectory = BuildConfig.buildDirectory(project.iniData());
         }
 
-        return new File(project.projectDir(), outputDirectory + File.separator + name + ".jar").getAbsoluteFile();
+        return ProjectPaths.resolve(project.projectDir(), outputDirectory + File.separator + name + ".jar")
+                .getAbsoluteFile();
     }
 
     private File resolveManifestFile() throws IOException {
@@ -171,7 +172,7 @@ public class JarCommandBuilder {
 
         var manifestPath = jarSection.getOrDefault("manifest", "").trim();
         if (!manifestPath.isBlank()) {
-            var manifestFile = new File(project.projectDir(), manifestPath);
+            var manifestFile = ProjectPaths.resolve(project.projectDir(), manifestPath);
             if (!manifestFile.canRead()) {
                 throw new IllegalStateException("Cannot read manifest: " + manifestFile.getPath());
             }

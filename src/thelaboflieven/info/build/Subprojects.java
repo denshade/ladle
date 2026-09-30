@@ -1,6 +1,7 @@
 package thelaboflieven.info.build;
 
 import thelaboflieven.info.ProjectContext;
+import thelaboflieven.info.ProjectPaths;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,7 +46,7 @@ public final class Subprojects {
     }
 
     public static File iniFile(File projectDir, Subproject subproject) {
-        var subIni = new File(new File(projectDir, subproject.path()), ProjectContext.DEFAULT_INI_FILE);
+        var subIni = new File(ProjectPaths.resolve(projectDir, subproject.path()), ProjectContext.DEFAULT_INI_FILE);
         if (!subIni.canRead()) {
             throw new IllegalStateException("Cannot read subproject build.ini: " + subIni.getPath());
         }

@@ -39,7 +39,7 @@ public final class FatJarAssembler {
 
         var unpackedJars = CompileClasspath.runtimeJarPaths(project.projectDir(), project.iniData());
         for (var relativeJar : unpackedJars) {
-            unpackJar(new File(project.projectDir(), relativeJar), stagingRoot);
+            unpackJar(ProjectPaths.resolve(project.projectDir(), relativeJar), stagingRoot);
         }
         copyProjectClasses(classesRoot, stagingRoot);
         return unpackedJars;

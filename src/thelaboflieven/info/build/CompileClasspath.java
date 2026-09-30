@@ -1,8 +1,10 @@
 package thelaboflieven.info.build;
 
+import thelaboflieven.info.ProjectPaths;
 import thelaboflieven.info.download.Dependencies;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,9 +51,12 @@ public final class CompileClasspath {
     }
 
     private static String requireReadable(File projectDir, String relativePath, String missingPrefix) {
-        var jarFile = new File(projectDir, relativePath);
+        var jarFile = ProjectPaths.resolve(projectDir, relativePath);
         if (!jarFile.canRead()) {
             throw new IllegalStateException(missingPrefix + jarFile.getPath());
+        }
+        if (Path.of(relativePath).isAbsolute()) {
+            return jarFile.getPath();
         }
         return relativePath;
     }

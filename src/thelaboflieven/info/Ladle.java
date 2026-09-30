@@ -98,7 +98,7 @@ public class Ladle {
         var buildIni = resolveIniFile("clear", args);
         var project = ProjectContext.load(buildIni.getAbsolutePath());
         var buildDirectory = BuildConfig.buildDirectory(project.iniData());
-        var buildDir = new File(buildIni.getParentFile(), buildDirectory);
+        var buildDir = ProjectPaths.resolve(buildIni.getParentFile(), buildDirectory);
         if (!buildDir.exists()) {
             System.err.println("Warning: build directory '" + buildDirectory + "' does not exist.");
             return;
